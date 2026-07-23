@@ -1,0 +1,11 @@
+module DPay
+  class PaymentService
+    def initialize: (Internal::ApiRequestor api) -> void
+    def register: (RegisterPaymentRequest request) -> RegisteredPayment
+    def details: (String transaction_id) -> Transaction
+
+    private
+
+    def rejected?: (Hash[String, untyped] data) -> bool
+  end
+end

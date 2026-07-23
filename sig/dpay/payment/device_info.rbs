@@ -1,0 +1,25 @@
+module DPay
+  class DeviceInfo
+    def self.create: (
+      browser_accept_header: String,
+      browser_language: String,
+      browser_color_depth: Integer,
+      browser_screen_height: Integer,
+      browser_screen_width: Integer,
+      browser_tz: Integer,
+      browser_user_agent: String,
+      system_family: String,
+      geo_localization: String,
+      device_id: String,
+      application_name: String
+    ) -> DeviceInfo
+
+    def initialize: (Hash[String, untyped] fields) -> void
+    def with_browser_java_enabled: (bool enabled) -> self
+    def to_h: () -> Hash[String, untyped]
+
+    private
+
+    def self.bounded: (untyped value, String label) -> String
+  end
+end

@@ -1,0 +1,12 @@
+module DPay
+  module CardRecurringOperation
+    ADD_CARD: String
+    COF_INITIAL: String
+    CHARGE: String
+
+    ALL: Array[String]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

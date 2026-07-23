@@ -1,0 +1,13 @@
+module DPay
+  module Internal
+    class BaseUrls
+      API_PAYMENTS: Symbol
+      PANEL: Symbol
+      GATEWAY: Symbol
+      DEFAULTS: Hash[Symbol, String]
+
+      def initialize: (?Hash[untyped, String] overrides) -> void
+      def resolve: (Symbol host) -> String
+    end
+  end
+end

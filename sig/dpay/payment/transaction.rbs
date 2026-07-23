@@ -1,0 +1,25 @@
+module DPay
+  class Transaction
+    attr_reader id: String
+    attr_reader value: Money
+    attr_reader status: String
+    attr_reader payment_method: String?
+    attr_reader creation_date: String?
+    attr_reader payment_date: String?
+    attr_reader refunded_amount: Money
+    attr_reader available_refund_amount: Money
+    attr_reader gateway_id: String?
+    attr_reader payer: Hash[String, untyped]
+    attr_reader refunds: Array[TransactionRefund]
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> Transaction
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def paid?: () -> bool
+    def settled?: () -> bool
+    def refunded?: () -> bool
+    def fully_refunded?: () -> bool
+    def direct?: () -> bool
+  end
+end

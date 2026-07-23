@@ -1,0 +1,16 @@
+module DPay
+  module Internal
+    module ErrorMapper
+      DEFAULT_MESSAGE: String
+
+      def self?.map: (HTTP::Response response) -> ApiError
+      def self?.error_class: (Integer status) -> singleton(ApiError)
+      def self?.extract_message: (Hash[String, untyped] data) -> String
+      def self?.rate_limit: (HTTP::Response response, String message) -> RateLimitError
+      def self?.normalize_field_errors: (untyped errors) -> Hash[String, Array[String]]
+      def self?.normalize_messages: (untyped messages) -> Array[String]?
+      def self?.scalar?: (untyped value) -> bool
+      def self?.int_header: (HTTP::Response response, String name) -> Integer?
+    end
+  end
+end

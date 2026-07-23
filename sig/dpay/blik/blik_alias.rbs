@@ -1,0 +1,17 @@
+module DPay
+  class BlikAlias
+    ACTIVE: String
+
+    attr_reader alias_value: String
+    attr_reader alias_type: String
+    attr_reader status: String?
+    attr_reader expiration_date: String?
+    attr_reader apps: Array[BlikApp]
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> BlikAlias
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def active?: () -> bool
+  end
+end

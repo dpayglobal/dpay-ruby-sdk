@@ -1,0 +1,10 @@
+module DPay
+  class DccMarkup
+    attr_reader rate: Float
+    attr_reader additional_info: String?
+
+    def self.from_api: (Hash[String, untyped] data) -> DccMarkup
+
+    def initialize: (Hash[String, untyped] data) -> void
+  end
+end

@@ -1,0 +1,13 @@
+module DPay
+  class BankService
+    PATH: String
+
+    def initialize: (Internal::ApiRequestor api) -> void
+    def all: () -> Array[Bank]
+    def for_service: (?Integer? timestamp) -> Array[Bank]
+
+    private
+
+    def map_banks: (untyped data) -> Array[Bank]
+  end
+end

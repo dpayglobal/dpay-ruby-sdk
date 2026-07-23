@@ -1,0 +1,9 @@
+module DPay
+  module Internal
+    class ChecksumCalculator
+      def initialize: (String secret_hash) -> void
+      def secret_second: (String service, Array[untyped] fields) -> String
+      def ordered_body: (Array[untyped] values) -> String
+    end
+  end
+end

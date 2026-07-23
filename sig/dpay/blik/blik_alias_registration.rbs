@@ -1,0 +1,6 @@
+module DPay
+  class BlikAliasRegistration
+    def initialize: (String label, ?String type) -> void
+    def to_h: () -> Hash[String, untyped]
+  end
+end

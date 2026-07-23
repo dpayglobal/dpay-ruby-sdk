@@ -1,0 +1,14 @@
+module DPay
+  class Payer
+    EMAIL: Regexp
+
+    attr_reader email: String?
+    attr_reader first_name: String?
+    attr_reader last_name: String?
+
+    def self.create: () -> Payer
+
+    def with_email: (String email) -> self
+    def with_name: (String first_name, String last_name) -> self
+  end
+end

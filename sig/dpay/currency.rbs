@@ -1,0 +1,11 @@
+module DPay
+  module Currency
+    PLN: String
+    EUR: String
+    CZK: String
+    CODE: Regexp
+
+    def self.valid?: (untyped code) -> bool
+    def self.assert_valid: (untyped code) -> void
+  end
+end

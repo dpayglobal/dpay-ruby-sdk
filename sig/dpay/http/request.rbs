@@ -1,0 +1,12 @@
+module DPay
+  module HTTP
+    class Request
+      attr_reader method: String
+      attr_reader url: String
+      attr_reader headers: Hash[String, String]
+      attr_reader body: String?
+
+      def initialize: (String method, String url, ?Hash[String, String] headers, ?String? body) -> void
+    end
+  end
+end

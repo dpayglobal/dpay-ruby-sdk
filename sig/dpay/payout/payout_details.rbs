@@ -1,0 +1,24 @@
+module DPay
+  class PayoutDetails
+    attr_reader id: Integer
+    attr_reader state: Integer?
+    attr_reader net: Money
+    attr_reader fee: Money
+    attr_reader gross: Money
+    attr_reader creation_date: String?
+    attr_reader nrb: String?
+    attr_reader decline_reason: String?
+    attr_reader decline_status: String?
+    attr_reader receiver: PayoutReceiver?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> PayoutDetails
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def waiting?: () -> bool
+    def processed?: () -> bool
+    def failed?: () -> bool
+    def direct_settlement?: () -> bool
+    def declined?: () -> bool
+  end
+end

@@ -1,0 +1,9 @@
+module DPay
+  class CardEncryptor
+    def encrypt: (CardData card, String transaction_id, String public_key_pem, ?timestamp: Integer) -> String
+
+    private
+
+    def load_key: (String public_key_pem) -> OpenSSL::PKey::RSA
+  end
+end

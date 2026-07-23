@@ -1,0 +1,13 @@
+module DPay
+  module RedirectType
+    SUCCESS: String
+    FORM: String
+    URL: String
+    DCC_OFFER: String
+
+    ALL: Array[String]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

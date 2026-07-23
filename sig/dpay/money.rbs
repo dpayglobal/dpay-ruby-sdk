@@ -1,0 +1,25 @@
+module DPay
+  class Money
+    DECIMAL: Regexp
+
+    attr_reader minor: Integer
+    attr_reader currency: String
+
+    def self.pln: (Integer minor) -> Money
+    def self.of: (Integer minor, String currency) -> Money
+    def self.from_decimal: (String decimal, String currency) -> Money
+    def self.from_api_number: (untyped value, String currency) -> Money
+    def self.try_from_api_number: (untyped value, String currency) -> Money?
+
+    def initialize: (Integer minor, String currency) -> void
+    def to_decimal: () -> String
+    def negative?: () -> bool
+    def ==: (untyped other) -> bool
+    def hash: () -> Integer
+    def to_s: () -> String
+
+    private
+
+    def self.parse_decimal: (untyped decimal) -> Integer?
+  end
+end

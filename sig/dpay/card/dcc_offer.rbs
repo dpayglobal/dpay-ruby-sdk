@@ -1,0 +1,21 @@
+module DPay
+  class DccOffer
+    attr_reader currency_conversion_id: String
+    attr_reader original_amount: Money
+    attr_reader converted_amount: Money
+    attr_reader exchange_rate: Float
+    attr_reader valid_until: String
+    attr_reader declaration_text: String
+    attr_reader markup: Array[DccMarkup]
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> DccOffer
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def european_economic_area?: () -> bool
+
+    private
+
+    def currency: (untyped value) -> String
+  end
+end

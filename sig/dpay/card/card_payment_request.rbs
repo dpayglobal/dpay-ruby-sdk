@@ -1,0 +1,17 @@
+module DPay
+  class CardPaymentRequest
+    @leading: Hash[String, untyped]
+    @trailing: Hash[String, untyped]
+
+    def self.create: (DeviceInfo device_info) -> CardPaymentRequest
+
+    def initialize: (DeviceInfo device_info) -> void
+    def with_email: (String email) -> self
+    def with_channel_id: (Integer channel_id) -> self
+    def with_card_holder: (String first_name, String last_name) -> self
+    def with_encrypted_card_data: (String encrypted_card_data) -> self
+    def with_three_ds_confirmed: (bool confirmed) -> self
+    def with_dcc_decision: (String decision) -> self
+    def to_body: () -> Hash[String, untyped]
+  end
+end

@@ -1,0 +1,12 @@
+module DPay
+  class GooglePayRequest
+    @leading: Hash[String, untyped]
+
+    def self.create: (String token, DeviceInfo device_info) -> GooglePayRequest
+
+    def initialize: (String token, DeviceInfo device_info) -> void
+    def with_email: (String email) -> self
+    def with_channel_id: (Integer channel_id) -> self
+    def to_body: () -> Hash[String, untyped]
+  end
+end

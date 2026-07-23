@@ -1,0 +1,14 @@
+module DPay
+  class TransactionRefund
+    attr_reader payment_id: String
+    attr_reader value: Money
+    attr_reader status: String
+    attr_reader creation_date: String?
+    attr_reader payment_date: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> TransactionRefund
+
+    def initialize: (Hash[String, untyped] data) -> void
+  end
+end

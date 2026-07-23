@@ -1,0 +1,12 @@
+module DPay
+  module IpnType
+    TRANSFER: String
+    CAPTURE: String
+    DCB: String
+
+    ALL: Array[String]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

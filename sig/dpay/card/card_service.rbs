@@ -1,0 +1,16 @@
+module DPay
+  class CardService
+    def initialize: (Internal::ApiRequestor api) -> void
+    def public_key: () -> String
+    def pay_otp: (String transaction_id, CardPaymentRequest request) -> CardPaymentResult
+    def pre_auth: (String transaction_id, CardPaymentRequest request) -> CardPaymentResult
+    def capture: (String transaction_id, Money amount) -> CardPaymentResult
+    def cancel: (String transaction_id, ?Money? amount) -> CardPaymentResult
+    def google_pay: (String transaction_id, GooglePayRequest request) -> CardPaymentResult
+    def apple_pay: (String transaction_id, ApplePayRequest request) -> CardPaymentResult
+
+    private
+
+    def post: (String transaction_id, String suffix, Hash[String, untyped] body) -> CardPaymentResult
+  end
+end

@@ -1,0 +1,28 @@
+module DPay
+  class IpnEvent
+    ACK: String
+
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_verified_payload: (Hash[String, untyped] payload) -> IpnEvent
+
+    def initialize: (Hash[String, untyped] payload) -> void
+    def id: () -> String
+    def amount: () -> String
+    def type: () -> String
+    def signature: () -> String
+    def email: () -> String?
+    def custom: () -> String?
+    def capture_payment_id: () -> String?
+    def attempt: () -> Integer
+    def version: () -> Integer
+    def transfer?: () -> bool
+    def capture?: () -> bool
+    def dcb?: () -> bool
+
+    private
+
+    def scalar: (String key) -> String?
+    def integer: (String key) -> Integer
+  end
+end

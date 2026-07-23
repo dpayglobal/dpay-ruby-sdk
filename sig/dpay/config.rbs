@@ -1,0 +1,25 @@
+module DPay
+  class Config
+    DEFAULT_TIMEOUT: Integer
+
+    attr_reader service: String
+    attr_reader secret_hash: String
+    attr_reader timeout: Integer
+    attr_reader http_client: untyped
+    attr_reader base_urls: Internal::BaseUrls
+
+    def initialize: (
+      service: String,
+      secret_hash: String,
+      ?timeout: Integer,
+      ?http_client: untyped?,
+      ?base_urls: Hash[untyped, String]?
+    ) -> void
+
+    private
+
+    def non_empty_string: (untyped value, String name) -> String
+    def positive_integer: (untyped value) -> Integer
+    def transport: (untyped value) -> untyped
+  end
+end

@@ -1,0 +1,15 @@
+module DPay
+  module HTTP
+    class NetHTTPClient < Client
+      CONNECT_TIMEOUT: Integer
+      NETWORK_ERRORS: Array[Class]
+
+      def initialize: (?Integer timeout) -> void
+      def request: (Request api_request) -> Response
+
+      private
+
+      def build_request: (URI::HTTP uri, Request api_request) -> untyped
+    end
+  end
+end

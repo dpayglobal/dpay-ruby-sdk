@@ -1,0 +1,16 @@
+module DPay
+  module CardRecurringFrequency
+    DAILY: String
+    WEEKLY: String
+    BIWEEKLY: String
+    MONTHLY: String
+    QUARTERLY: String
+    SEMIANNUAL: String
+    ANNUAL: String
+
+    ALL: Array[String]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

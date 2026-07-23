@@ -1,0 +1,17 @@
+module DPay
+  class InvoiceDetails
+    DATE: Regexp
+
+    @data: Hash[String, untyped]
+
+    def self.create: () -> InvoiceDetails
+
+    def initialize: () -> void
+    def with_payer_nip: (String payer_nip) -> self
+    def with_payer_name: (String payer_name) -> self
+    def with_invoice_number: (String invoice_number) -> self
+    def with_payment_due_date: (String payment_due_date) -> self
+    def with_vat_amount: (Money vat_amount) -> self
+    def to_h: () -> Hash[String, untyped]
+  end
+end

@@ -1,0 +1,15 @@
+module DPay
+  class CardData
+    PAN: Regexp
+    CVV: Regexp
+    EXPIRY: Regexp
+
+    attr_reader pan: String
+    attr_reader cvv: String
+    attr_reader expiry: String
+
+    def initialize: (String pan, String cvv, String expiry) -> void
+    def inspect: () -> String
+    def to_s: () -> String
+  end
+end

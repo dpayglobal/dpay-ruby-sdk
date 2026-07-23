@@ -1,0 +1,86 @@
+module DPay
+  module Error
+  end
+
+  class InvalidArgumentError < ArgumentError
+    include Error
+  end
+
+  class TransportError < StandardError
+    include Error
+  end
+
+  class SignatureVerificationError < StandardError
+    include Error
+  end
+
+  class CardEncryptionError < StandardError
+    include Error
+  end
+
+  class ApiError < StandardError
+    include Error
+
+    attr_reader http_status: Integer
+    attr_reader error_code: String?
+    attr_reader field_errors: Hash[String, Array[String]]
+    attr_reader raw_body: String
+
+    def initialize: (
+      String message,
+      Integer http_status,
+      ?String? error_code,
+      ?Hash[String, Array[String]] field_errors,
+      ?String raw_body
+    ) -> void
+  end
+
+  class AuthenticationError < ApiError
+  end
+
+  class InvalidRequestError < ApiError
+  end
+
+  class AccessDeniedError < ApiError
+  end
+
+  class NotFoundError < ApiError
+  end
+
+  class ApiServerError < ApiError
+  end
+
+  class RateLimitError < ApiError
+    attr_reader retry_after: Integer?
+    attr_reader limit: Integer?
+    attr_reader remaining: Integer?
+
+    def initialize: (
+      String message,
+      Integer http_status,
+      ?Integer? retry_after,
+      ?Integer? limit,
+      ?Integer? remaining,
+      ?String raw_body
+    ) -> void
+  end
+
+  class PaymentRejectedError < ApiError
+    attr_reader transaction_id: String?
+
+    def self.from_api: (Hash[String, untyped] data) -> PaymentRejectedError
+
+    def initialize: (
+      String message,
+      Integer http_status,
+      ?String? error_code,
+      ?Hash[String, Array[String]] field_errors,
+      ?String raw_body,
+      ?String? transaction_id
+    ) -> void
+  end
+
+  class CardPaymentError < ApiError
+    def self.from_api: (Hash[String, untyped] data) -> CardPaymentError
+  end
+end

@@ -1,0 +1,13 @@
+module DPay
+  class BlikService
+    def initialize: (Internal::ApiRequestor api) -> void
+    def alias: (String alias_value, ?String alias_type) -> BlikAlias
+    def unregister_alias: (String alias_value, ?String alias_type, ?String? reason) -> nil
+    def recurring_status: (String alias_value) -> BlikRecurringStatus
+
+    private
+
+    def alias_body: (String alias_value, String alias_type, ?String? reason) -> Hash[String, untyped]
+    def payload: (Hash[String, untyped] data) -> Hash[String, untyped]
+  end
+end

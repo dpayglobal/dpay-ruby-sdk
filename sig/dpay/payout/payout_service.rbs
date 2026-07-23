@@ -1,0 +1,6 @@
+module DPay
+  class PayoutService
+    def initialize: (Internal::ApiRequestor api) -> void
+    def details: (Integer withdraw_id, ?Integer? timestamp) -> PayoutDetails
+  end
+end

@@ -1,0 +1,10 @@
+module DPay
+  class PayoutPosition
+    attr_reader iban: String
+    attr_reader title: String
+    attr_reader amount: Money
+
+    def initialize: (String iban, String title, Money amount) -> void
+    def to_h: () -> Hash[String, untyped]
+  end
+end

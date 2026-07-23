@@ -1,0 +1,15 @@
+module DPay
+  module HTTP
+    class Response
+      @headers: Hash[String, String]
+
+      attr_reader status: Integer
+      attr_reader headers: Hash[String, String]
+      attr_reader body: String
+
+      def initialize: (Integer status, Hash[String, String] headers, String body) -> void
+      def header: (String name) -> String?
+      def decode_json: () -> untyped
+    end
+  end
+end

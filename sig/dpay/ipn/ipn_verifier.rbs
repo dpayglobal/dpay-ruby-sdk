@@ -1,0 +1,11 @@
+module DPay
+  module IpnVerifier
+    REQUIRED_FIELDS: Array[String]
+    INVALID_PAYLOAD: String
+
+    def self?.construct_event: (untyped raw_body, String secret_hash) -> IpnEvent
+    def self?.parse: (untyped raw_body) -> Hash[String, untyped]
+    def self?.expected_signature: (Hash[String, untyped] payload, String secret_hash) -> String
+    def self?.secure_compare: (String expected, String actual) -> bool
+  end
+end

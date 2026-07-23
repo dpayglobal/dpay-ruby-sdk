@@ -1,0 +1,22 @@
+module DPay
+  class CardPaymentResult
+    attr_reader redirect_type: String?
+    attr_reader redirect_text: String?
+    attr_reader dcc_offer: DccOffer?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> CardPaymentResult
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def success?: () -> bool
+    def three_ds_form?: () -> bool
+    def requires_redirect?: () -> bool
+    def dcc_offer?: () -> bool
+    def three_ds_form_html: () -> String?
+    def redirect_url: () -> String?
+
+    private
+
+    def decode: () -> String?
+  end
+end

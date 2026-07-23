@@ -1,0 +1,21 @@
+module DPay
+  class Client
+    VERSION: String
+
+    attr_reader config: Config
+    attr_reader payments: PaymentService
+    attr_reader refunds: RefundService
+    attr_reader banks: BankService
+    attr_reader blik: BlikService
+    attr_reader cards: CardService
+    attr_reader payouts: PayoutService
+
+    def initialize: (
+      service: String,
+      secret_hash: String,
+      ?timeout: Integer,
+      ?http_client: untyped?,
+      ?base_urls: Hash[untyped, String]?
+    ) -> void
+  end
+end

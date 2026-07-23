@@ -1,0 +1,20 @@
+module DPay
+  class RegisteredPayment
+    REDIRECT: Regexp
+    PAID: String
+    INTERNAL_PROCESSING: String
+
+    attr_reader transaction_id: String
+    attr_reader message: String
+    attr_reader ipksef: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> RegisteredPayment
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def redirect_url: () -> String?
+    def paid?: () -> bool
+    def internal_processing?: () -> bool
+    def card_recurring_alias: () -> String?
+  end
+end

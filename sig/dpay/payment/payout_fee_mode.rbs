@@ -1,0 +1,11 @@
+module DPay
+  module PayoutFeeMode
+    NET: String
+    GROSS: String
+
+    ALL: Array[String]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

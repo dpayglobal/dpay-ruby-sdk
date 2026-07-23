@@ -1,0 +1,14 @@
+module DPay
+  class RefundService
+    AVAILABILITY_STATUSES: Array[Integer]
+
+    def initialize: (Internal::ApiRequestor api) -> void
+    def create: (String transaction_id, ?Money? amount, ?String? reason) -> Refund
+    def check_availability: (String transaction_id, ?Money? amount, ?String? reason) -> RefundAvailability
+
+    private
+
+    def availability_outcome?: (Integer status, Hash[String, untyped] data) -> bool
+    def signed_body: (String transaction_id, Money? amount, String? reason) -> Hash[String, untyped]
+  end
+end

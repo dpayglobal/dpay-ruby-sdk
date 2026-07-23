@@ -1,0 +1,3 @@
+module DPay
+  VERSION: String
+end

@@ -1,0 +1,16 @@
+module DPay
+  module Testing
+    class MockHttpClient < HTTP::Client
+      attr_reader queued: Array[HTTP::Response]
+      attr_reader requests: Array[HTTP::Request]
+
+      def initialize: () -> void
+      def queue: (HTTP::Response response) -> self
+      def queue_json: (Integer status, untyped body, ?Hash[String, String] headers) -> self
+      def queue_text: (Integer status, String body, ?Hash[String, String] headers) -> self
+      def request: (HTTP::Request api_request) -> HTTP::Response
+      def last_request: () -> HTTP::Request
+      def last_request_body: () -> Hash[String, untyped]
+    end
+  end
+end

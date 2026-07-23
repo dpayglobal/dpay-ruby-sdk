@@ -1,0 +1,22 @@
+module DPay
+  class CardRecurringRegistration
+    DATE: Regexp
+
+    @optional: Hash[String, untyped]
+
+    def self.create: (String label) -> CardRecurringRegistration
+
+    def initialize: (String label) -> void
+    def with_frequency: (String frequency) -> self
+    def with_limit_amt: (Money limit_amt) -> self
+    def with_tot_limit_amt: (Money tot_limit_amt) -> self
+    def with_limit_amt_fixed: (bool fixed) -> self
+    def with_expiration_date: (String expiration_date) -> self
+    def with_init_date: (String init_date) -> self
+    def to_h: () -> Hash[String, untyped]
+
+    private
+
+    def assert_date: (untyped date) -> String
+  end
+end

@@ -1,0 +1,17 @@
+module DPay
+  class Bank
+    attr_reader id: String
+    attr_reader name: String
+    attr_reader image: String?
+    attr_reader on_from: Integer
+    attr_reader on_to: Integer
+    attr_reader iterator: Integer?
+    attr_reader type: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> Bank
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def test?: () -> bool
+  end
+end

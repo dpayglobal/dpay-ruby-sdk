@@ -1,0 +1,8 @@
+module DPay
+  class PayoutInstruction
+    def self.create: (Array[PayoutPosition] positions, ?String fee_mode) -> PayoutInstruction
+
+    def initialize: (Array[PayoutPosition] positions, ?String fee_mode) -> void
+    def to_h: () -> Hash[String, untyped]
+  end
+end

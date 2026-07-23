@@ -1,0 +1,14 @@
+module DPay
+  module TransactionStatus
+    PAID: String
+    CREATED: String
+    PROCESSING: String
+    EXPIRED: String
+    CAPTURED: String
+
+    ALL: Array[String]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

@@ -1,0 +1,10 @@
+module DPay
+  class BlikApp
+    attr_reader key: String?
+    attr_reader label: String?
+
+    def self.from_api: (Hash[String, untyped] data) -> BlikApp
+
+    def initialize: (Hash[String, untyped] data) -> void
+  end
+end

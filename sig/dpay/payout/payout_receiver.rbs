@@ -1,0 +1,15 @@
+module DPay
+  class PayoutReceiver
+    attr_reader nrb: String?
+    attr_reader title: String?
+    attr_reader amount: Money?
+    attr_reader service: String?
+    attr_reader receiver_name: String?
+    attr_reader receiver_address: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> PayoutReceiver
+
+    def initialize: (Hash[String, untyped] data) -> void
+  end
+end

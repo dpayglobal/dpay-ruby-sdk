@@ -1,0 +1,12 @@
+module DPay
+  module Internal
+    module Coerce
+      def self?.string: (untyped value) -> String?
+      def self?.money: (untyped value, ?String currency) -> Money
+      def self?.boolean: (untyped value) -> bool
+      def self?.integer: (Integer | Float | String | bool | nil value) -> Integer
+      def self?.optional_integer: (Integer | Float | String | bool | nil value) -> Integer?
+      def self?.list: (untyped value) -> Array[Hash[String, untyped]]
+    end
+  end
+end

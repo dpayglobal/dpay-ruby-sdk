@@ -1,0 +1,16 @@
+module DPay
+  module TransactionType
+    TRANSFERS: String
+    DCB_GATEWAY: String
+    CARD_AUTH: String
+    MB_WAY_DIRECT: String
+    BIZUM_DIRECT: String
+    BLIK_RECURRING: String
+    CARD_RECURRING: String
+
+    ALL: Array[String]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

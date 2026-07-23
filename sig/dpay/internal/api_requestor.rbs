@@ -1,0 +1,23 @@
+module DPay
+  module Internal
+    class ApiRequestor
+      USER_AGENT: String
+
+      attr_reader config: Config
+      attr_reader checksum: ChecksumCalculator
+
+      def initialize: (Config config, untyped http_client) -> void
+      def service: () -> String
+      def post_json: (Symbol host, String path, Hash[String, untyped] body) -> Hash[String, untyped]
+      def get_json: (Symbol host, String path) -> Hash[String, untyped]
+      def get_text: (Symbol host, String path) -> String
+      def send_request: (String method, Symbol host, String path, Hash[String, untyped]? body) -> HTTP::Response
+      def send_raw: (String method, Symbol host, String path, Hash[String, untyped]? body) -> HTTP::Response
+      def map_error: (HTTP::Response response) -> ApiError
+
+      private
+
+      def decode: (HTTP::Response response) -> Hash[String, untyped]
+    end
+  end
+end

@@ -1,0 +1,56 @@
+module DPay
+  class RegisterPaymentRequest
+    BLIK_CODE: Regexp
+    PARTNER_PLATFORM: Regexp
+    HTTP_URL: Regexp
+    TOGGLES: Hash[String, Symbol]
+
+    @optional: Hash[String, untyped]
+
+    attr_reader amount: Money
+
+    def self.create: (Money amount, String transaction_type, ReturnUrls urls) -> RegisterPaymentRequest
+
+    def initialize: (Money amount, String transaction_type, ReturnUrls urls) -> void
+
+    def with_description: (String description) -> self
+    def with_custom: (untyped custom) -> self
+    def with_payer: (Payer payer) -> self
+    def with_accept_tos: (bool accept_tos) -> self
+    def with_channel: (String channel) -> self
+    def with_credit_card: (bool enabled) -> self
+    def with_paysafecard: (bool enabled) -> self
+    def with_blik: (bool enabled) -> self
+    def with_installment: (bool enabled) -> self
+    def with_paypal: (bool enabled) -> self
+    def with_no_banks: (bool disabled) -> self
+    def with_phone_number: (String phone_number, String currency_code) -> self
+    def with_currency_code: (String currency_code) -> self
+    def with_partner_platform: (String partner_platform) -> self
+    def with_blik_code: (String blik_code, String user_agent, String user_ip) -> self
+    def with_blik_alias: (String alias_value, String user_agent, String user_ip) -> self
+    def with_register_blik_alias: (BlikAliasRegistration registration) -> self
+    def with_register_blik_recurring_alias: (BlikRecurringRegistration registration) -> self
+    def with_alias_ipn_url: (String url) -> self
+    def with_no_delay: (bool no_delay) -> self
+    def with_card_recurring: (CardRecurringRegistration registration) -> self
+    def with_card_recurring_alias: (String alias_value) -> self
+    def with_authorize_only: (bool authorize_only) -> self
+    def with_card_recurring_operation: (String operation) -> self
+    def with_payout: (PayoutInstruction payout) -> self
+    def with_billing_address: (Hash[String, untyped] billing_address) -> self
+    def with_shipping_address: (Hash[String, untyped] shipping_address) -> self
+    def with_device_info: (DeviceInfo device_info) -> self
+    def with_products: (Array[Hash[String, untyped]] products) -> self
+    def with_efaktura: (?InvoiceDetails? invoice) -> self
+
+    def to_body: (String service) -> Hash[String, untyped]
+
+    private
+
+    def set: (String key, untyped value) -> self
+    def append: (Hash[String, untyped] body, String key) -> void
+    def append_payer: (Hash[String, untyped] body) -> void
+    def append_toggles: (Hash[String, untyped] body) -> void
+  end
+end

@@ -1,0 +1,13 @@
+module DPay
+  class ApplePayRequest
+    INIT: String
+    PAY: String
+
+    def self.init: (DeviceInfo device_info) -> ApplePayRequest
+    def self.pay: (String token, DeviceInfo device_info) -> ApplePayRequest
+
+    def initialize: (String x_pay_type, String? token, DeviceInfo device_info) -> void
+    def with_channel_id: (Integer channel_id) -> self
+    def to_body: () -> Hash[String, untyped]
+  end
+end

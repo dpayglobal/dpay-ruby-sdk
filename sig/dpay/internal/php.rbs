@@ -1,0 +1,16 @@
+module DPay
+  module Internal
+    module PHP
+      SAFE_INTEGRAL_FLOAT: Integer
+      NON_UNRESERVED: Regexp
+
+      def self?.strval: (untyped value) -> String
+      def self?.round: (Float value) -> Integer
+      def self?.json_encode: (untyped data, ?escape_slashes: bool) -> String
+      def self?.raw_url_encode: (untyped value) -> String
+      def self?.float_to_string: (Float value) -> String
+      def self?.normalize_floats: (untyped value) -> untyped
+      def self?.integral_float?: (Float value) -> bool
+    end
+  end
+end

@@ -1,0 +1,12 @@
+module DPay
+  class RefundAvailability
+    attr_reader message: String?
+    attr_reader http_status: Integer?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data, ?Integer? http_status) -> RefundAvailability
+
+    def initialize: (Hash[String, untyped] data, ?Integer? http_status) -> void
+    def available?: () -> bool
+  end
+end

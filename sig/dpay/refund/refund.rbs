@@ -1,0 +1,11 @@
+module DPay
+  class Refund
+    attr_reader message: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> Refund
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def accepted?: () -> bool
+  end
+end
