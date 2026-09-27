@@ -2,10 +2,10 @@
 
 module DPay
   module BlikAliasType
+    # BLIK OneClick alias. Recurring payments (PAYID) are handled by Client#recurring.
     UID = "UID"
-    PAYID = "PAYID"
 
-    ALL = [UID, PAYID].freeze
+    ALL = [UID].freeze
 
     def self.valid?(value)
       ALL.include?(value)

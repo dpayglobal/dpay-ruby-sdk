@@ -1,0 +1,27 @@
+module DPay
+  class RecurringStatus
+    ACTIVE: String
+    INACTIVE: String
+    UNREGISTERED: String
+    EXPIRED: String
+    DECLINED: String
+
+    ALL: Array[String]
+
+    attr_reader alias: String
+    attr_reader payment_method: String?
+    attr_reader status: String?
+    attr_reader expiration_date: String?
+    attr_reader registration: RecurringRegistrationInfo?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> RecurringStatus
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def active?: () -> bool
+
+    private
+
+    def string: (untyped value) -> String?
+  end
+end

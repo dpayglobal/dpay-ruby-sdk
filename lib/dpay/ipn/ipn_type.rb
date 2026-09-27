@@ -3,6 +3,7 @@
 module DPay
   module IpnType
     TRANSFER = "transfer"
+    # @deprecated dpay no longer sends capture IPNs - use the "payment.captured" webhook event.
     CAPTURE = "capture"
     DCB = "dcb"
 

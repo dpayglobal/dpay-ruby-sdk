@@ -24,6 +24,26 @@ RSpec.describe "DPay payment models" do
 
       expect(payment.card_recurring_alias).to eq("alias-1")
     end
+
+    it "reads the registered recurring payment and keeps only string methods" do
+      payment = described_class.from_api(
+        { "error" => false, "msg" => "Internal processing", "status" => true, "transactionId" => "tx-rec",
+          "additionalInfo" => { "recurring_registration" => { "alias" => "SUB-1", "methods" => ["blik", 7] } } }
+      )
+
+      expect(payment).to be_internal_processing
+      expect(payment.recurring_alias).to eq("SUB-1")
+      expect(payment.recurring_methods).to eq(["blik"])
+    end
+
+    it "tolerates a missing or malformed recurring registration" do
+      [{}, { "additionalInfo" => "nope" }, { "additionalInfo" => { "recurring_registration" => [] } }].each do |data|
+        payment = described_class.from_api(data)
+
+        expect(payment.recurring_alias).to be_nil
+        expect(payment.recurring_methods).to eq([])
+      end
+    end
   end
 
   describe DPay::Transaction do

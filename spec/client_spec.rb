@@ -20,6 +20,8 @@ RSpec.describe DPay::Client do
     expect(client.blik).to be_a(DPay::BlikService)
     expect(client.cards).to be_a(DPay::CardService)
     expect(client.payouts).to be_a(DPay::PayoutService)
+    expect(client.recurring).to be_a(DPay::RecurringService)
+    expect(client.events).to be_a(DPay::EventService)
   end
 
   it "shares one configuration across services" do

@@ -7,8 +7,14 @@ module DPay
     module PHP
       SAFE_INTEGRAL_FLOAT = 2**53
       NON_UNRESERVED = /[^A-Za-z0-9\-_.~]/n
+      TRIM_EDGES = /\A[ \t\n\r\x00\x0B]+|[ \t\n\r\x00\x0B]+\z/
 
       module_function
+
+      # PHP trim(): strips " \t\n\r\0\x0B" from both ends (String#strip also strips "\f").
+      def trim(value)
+        value.gsub(TRIM_EDGES, "")
+      end
 
       def strval(value)
         case value

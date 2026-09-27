@@ -22,14 +22,16 @@ module DPay
   class ApiError < StandardError
     include Error
 
-    attr_reader :http_status, :error_code, :field_errors, :raw_body
+    # reason: detail next to the error code, e.g. "https_required" for WEBHOOK_URL_INVALID.
+    attr_reader :http_status, :error_code, :field_errors, :raw_body, :reason
 
-    def initialize(message, http_status, error_code = nil, field_errors = {}, raw_body = "")
+    def initialize(message, http_status, error_code = nil, field_errors = {}, raw_body = "", reason = nil)
       super(message)
       @http_status = http_status
       @error_code = error_code
       @field_errors = field_errors
       @raw_body = raw_body
+      @reason = reason
     end
   end
 
@@ -51,19 +53,24 @@ module DPay
   end
 
   class PaymentRejectedError < ApiError
-    attr_reader :transaction_id
+    # error_description: the provider's description of the decline, when it sent one.
+    attr_reader :transaction_id, :error_description
 
     def self.from_api(data)
       message = %w[message msg].filter_map { |key| data[key] if data[key].is_a?(String) }.first || "Payment rejected"
-      error_code = data["errorcode"].is_a?(String) ? data["errorcode"] : nil
+      additional = data["additionalInfo"].is_a?(Hash) ? data["additionalInfo"] : {}
+      error_code = [data["errorcode"], additional["error"]].find { |code| code.is_a?(String) }
       transaction_id = data["transactionId"].nil? ? nil : Internal::PHP.strval(data["transactionId"])
+      description = additional["error_description"].is_a?(String) ? additional["error_description"] : nil
 
-      new(message, 200, error_code, {}, Internal::PHP.json_encode(data), transaction_id)
+      new(message, 200, error_code, {}, Internal::PHP.json_encode(data), transaction_id, description)
     end
 
-    def initialize(message, http_status, error_code = nil, field_errors = {}, raw_body = "", transaction_id = nil)
+    def initialize(message, http_status, error_code = nil, field_errors = {}, raw_body = "", transaction_id = nil,
+                   error_description = nil)
       super(message, http_status, error_code, field_errors, raw_body)
       @transaction_id = transaction_id
+      @error_description = error_description
     end
   end
 

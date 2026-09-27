@@ -1,0 +1,15 @@
+module DPay
+  class WebhookTarget
+    HTTPS_URL: Regexp
+    URL_MAX: Integer
+
+    attr_reader url: String
+    attr_reader events: Array[String]
+
+    def self.create: (String url, ?Array[String] events) -> WebhookTarget
+
+    def initialize: (String url, ?Array[String] events) -> void
+    def assert_events_allowed: (Array[String] allowed, String context) -> nil
+    def to_h: () -> Hash[String, untyped]
+  end
+end

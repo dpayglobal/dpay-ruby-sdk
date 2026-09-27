@@ -18,12 +18,28 @@ module DPay
       post(transaction_id, "/pay/card-pre-auth", request.to_body)
     end
 
-    def capture(transaction_id, amount)
-      post(transaction_id, "/capture", { "amount" => amount.to_decimal.to_f })
+    # Captures a pre-authorised amount (partial captures allowed up to the authorisation). Signed with
+    # sha256(capture|service|transaction_id|amount|hash). Optional webhook target for "payment.captured".
+    def capture(transaction_id, amount, webhook = nil)
+      # @type var body: Hash[String, untyped]
+      body = { "service" => @api.service, "amount" => amount.to_decimal.to_f }
+      unless webhook.nil?
+        webhook.assert_events_allowed(WebhookEventType::CAPTURE, "a card capture")
+        body["webhook"] = webhook.to_h
+      end
+      body["checksum"] = @api.checksum.operation("capture", @api.service, transaction_id, amount.to_decimal)
+
+      post(transaction_id, "/capture", body)
     end
 
+    # Cancels the pre-authorisation, the whole uncaptured remainder without an amount. Signed with
+    # sha256(cancellation|service|transaction_id|amount|hash) - empty amount segment without an amount.
     def cancel(transaction_id, amount = nil)
-      post(transaction_id, "/cancellation", amount.nil? ? {} : { "amount" => amount.to_decimal.to_f })
+      body = { "service" => @api.service }
+      body["amount"] = amount.to_decimal.to_f unless amount.nil?
+      body["checksum"] = @api.checksum.operation("cancellation", @api.service, transaction_id, amount&.to_decimal)
+
+      post(transaction_id, "/cancellation", body)
     end
 
     def google_pay(transaction_id, request)

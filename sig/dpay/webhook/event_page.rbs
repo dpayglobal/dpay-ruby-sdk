@@ -1,0 +1,14 @@
+module DPay
+  class EventPage
+    attr_reader data: Array[WebhookEvent]
+    attr_reader next_starting_after: String?
+    attr_reader raw: Hash[String, untyped]
+
+    @has_more: bool
+
+    def self.from_api: (Hash[String, untyped] response) -> EventPage
+
+    def initialize: (Hash[String, untyped] response) -> void
+    def has_more?: () -> bool
+  end
+end

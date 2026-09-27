@@ -17,6 +17,25 @@ RSpec.describe DPay::Error do
     expect(error.error_code).to be_nil
     expect(error.field_errors).to eq({})
     expect(error.raw_body).to eq("")
+    expect(error.reason).to be_nil
+  end
+
+  it "carries the reason next to the error code" do
+    error = DPay::InvalidRequestError.new("Invalid webhook URL", 400, "WEBHOOK_URL_INVALID", {}, "{}", "own_domain")
+
+    expect(error.reason).to eq("own_domain")
+  end
+
+  it "reads the provider decline of a BLIK payment from additionalInfo" do
+    error = DPay::PaymentRejectedError.from_api(
+      { "error" => true, "msg" => "Transaction canceled", "status" => false, "transactionId" => "tx-7",
+        "additionalInfo" => { "error" => "INSUFFICIENT_FUNDS", "error_description" => "IssId: 1" } }
+    )
+
+    expect(error.message).to eq("Transaction canceled")
+    expect(error.error_code).to eq("INSUFFICIENT_FUNDS")
+    expect(error.error_description).to eq("IssId: 1")
+    expect(error.transaction_id).to eq("tx-7")
   end
 
   it "exposes every SDK error through the DPay::Error marker" do
@@ -74,5 +93,6 @@ RSpec.describe DPay::Error do
     expect(error.field_errors).to eq({})
     expect(error.raw_body).to eq("")
     expect(error.transaction_id).to be_nil
+    expect(error.error_description).to be_nil
   end
 end

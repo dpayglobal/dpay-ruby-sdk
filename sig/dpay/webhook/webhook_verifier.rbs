@@ -1,0 +1,37 @@
+module DPay
+  module WebhookVerifier
+    DEFAULT_TOLERANCE: Integer
+    SECRET_PREFIX: String
+    SIGNATURE_VERSION: String
+    ID_HEADER: String
+    TIMESTAMP_HEADER: String
+    SIGNATURE_HEADER: String
+    RACK_PREFIX: String
+    TIMESTAMP: Regexp
+    BASE64: Regexp
+    BASE64_WHITESPACE: String
+    INVALID_SECRET: String
+
+    # headers: a Hash (or anything with #each yielding name and value), names as String or Symbol in any letter
+    # case or in the Rack format (HTTP_WEBHOOK_ID), values as String or Array[String].
+    def self?.construct_event: (
+      untyped raw_body,
+      untyped headers,
+      String | Array[String] secrets,
+      ?Integer tolerance,
+      ?Integer? now
+    ) -> WebhookEvent
+    def self?.verify: (
+      untyped raw_body,
+      untyped headers,
+      String | Array[String] secrets,
+      ?Integer tolerance,
+      ?Integer? now
+    ) -> nil
+    def self?.header: (untyped headers, String name) -> String?
+    def self?.header_name: (untyped key) -> String
+    def self?.signature_matches?: (String header_value, Array[String] expected) -> bool
+    def self?.secure_compare: (String expected, String actual) -> bool
+    def self?.key: (untyped secret) -> String
+  end
+end

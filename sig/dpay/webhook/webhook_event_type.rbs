@@ -1,0 +1,23 @@
+module DPay
+  module WebhookEventType
+    PAYMENT_SUCCEEDED: String
+    PAYMENT_FAILED: String
+    PAYMENT_CAPTURED: String
+    REFUND_SUCCEEDED: String
+    REFUND_FAILED: String
+    RECURRING_PAYMENT_ACTIVATED: String
+    RECURRING_PAYMENT_CANCELED: String
+    RECURRING_PAYMENT_EXPIRED: String
+    RECURRING_PAYMENT_DECLINED: String
+    PAYOUT_PAID: String
+    PAYOUT_FAILED: String
+    WEBHOOK_TEST: String
+
+    PAYMENT_REGISTRATION: Array[String]
+    MERCHANT: Array[String]
+    REFUND: Array[String]
+    CAPTURE: Array[String]
+
+    def self.assert_allowed: (Array[untyped] events, Array[String] allowed, String context) -> nil
+  end
+end

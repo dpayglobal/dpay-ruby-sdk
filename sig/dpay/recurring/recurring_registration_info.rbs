@@ -1,0 +1,27 @@
+module DPay
+  class RecurringRegistrationInfo
+    DIGITS: Regexp
+
+    attr_reader transaction_id: String?
+    attr_reader label: String?
+    attr_reader model: String?
+    attr_reader frequency: String?
+    attr_reader limit_amt: Integer?
+    attr_reader tot_limit_amt: Integer?
+    attr_reader limit_amt_fixed: bool?
+    attr_reader init_date: String?
+    attr_reader terms_url: String?
+    attr_reader terms_version: String?
+    attr_reader registered_at: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> RecurringRegistrationInfo
+
+    def initialize: (Hash[String, untyped] data) -> void
+
+    private
+
+    def string: (untyped value) -> String?
+    def integer: (untyped value) -> Integer?
+  end
+end

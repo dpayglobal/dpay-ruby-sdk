@@ -17,10 +17,19 @@ module DPay
         error_class(response.status).new(
           message,
           response.status,
-          data["errorcode"].is_a?(String) ? data["errorcode"] : nil,
+          extract_code(data),
           normalize_field_errors(data["errors"]),
-          response.body
+          response.body,
+          data["reason"].is_a?(String) ? data["reason"] : nil
         )
+      end
+
+      # "code" (Cards API, webhooks, Connect: CHECKSUM_REQUIRED, WEBHOOK_URL_INVALID, ...), then legacy "errorcode".
+      def extract_code(data)
+        return data["code"] if data["code"].is_a?(String)
+        return data["errorcode"] if data["errorcode"].is_a?(String)
+
+        nil
       end
 
       def error_class(status)

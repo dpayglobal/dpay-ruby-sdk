@@ -16,5 +16,11 @@ module DPay
     def paid?: () -> bool
     def internal_processing?: () -> bool
     def card_recurring_alias: () -> String?
+    def recurring_alias: () -> String?
+    def recurring_methods: () -> Array[String]
+
+    private
+
+    def recurring_registration: () -> Hash[String, untyped]
   end
 end

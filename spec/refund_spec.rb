@@ -60,4 +60,37 @@ RSpec.describe DPay::RefundService do
 
     expect(service.create("tx-1")).not_to be_accepted
   end
+
+  context "with a webhook target" do
+    let(:config) do
+      DPay::Config.new(service: "sdk-test-service", secret_hash: "sdk-test-hash-0001", http_client: transport)
+    end
+
+    it "hashes the webhook values in the order they are sent" do
+      transport.queue_json(200, { "status" => "success", "refund" => true,
+                                  "message" => "dpay.pl A75AEBB4-4B89-4834-AD43-EF442C133769" })
+
+      service.create(
+        "A75AEBB4-4B89-4834-AD43-EF442C133769", DPay::Money.pln(1500), "Zwrot",
+        DPay::WebhookTarget.create("https://shop.example/webhooks/refunds", %w[refund.succeeded refund.failed])
+      )
+
+      body = transport.last_request_body
+      expect(body.keys).to eq(%w[service transaction_id value reason webhook checksum])
+      expect(body["value"]).to eq("15.00")
+      expect(body["webhook"]).to eq(
+        { "url" => "https://shop.example/webhooks/refunds", "events" => %w[refund.succeeded refund.failed] }
+      )
+      # ...|15.00|Zwrot|https://shop.example/webhooks/refunds|refund.succeeded|refund.failed|hash
+      expect(body["checksum"]).to eq("53620f0ea6b46723866a46f2f0059c79cbe080e59d4f134508546be3fa08dacf")
+    end
+
+    it "accepts only refund events" do
+      target = DPay::WebhookTarget.create("https://shop.example/webhooks", ["payment.succeeded"])
+
+      expect { service.create("tx-1", nil, nil, target) }
+        .to raise_error(DPay::InvalidArgumentError, /webhook object of a refund/)
+      expect(transport.requests).to be_empty
+    end
+  end
 end

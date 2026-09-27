@@ -8,10 +8,10 @@ module DPay
 
     def register(request)
       body = request.to_body(@api.service)
-      body["checksum"] = @api.checksum.secret_second(
-        @api.service,
-        [body["value"], body["url_success"], body["url_fail"], body["url_ipn"]]
-      )
+      fields = [body["value"], body["url_success"], body["url_fail"], body["url_ipn"]]
+      # A recurring charge binds the checksum to the customer's alias
+      fields << body["recurring_alias"] unless body["recurring_alias"].nil?
+      body["checksum"] = @api.checksum.secret_second(@api.service, fields)
 
       data = @api.post_json(Internal::BaseUrls::API_PAYMENTS, "/api/v1_0/payments/register", body)
       raise PaymentRejectedError.from_api(data) if rejected?(data)

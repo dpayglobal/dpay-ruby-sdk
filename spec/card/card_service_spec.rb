@@ -35,23 +35,69 @@ RSpec.describe DPay::CardService do
     expect(result).to be_success
   end
 
-  it "captures with a float amount" do
+  it "captures with a float amount, the service and the operation checksum" do
     transport.queue_json(200, { "success" => true, "message" => { "redirectType" => "SUCCESS" } })
 
-    service.capture("tx-1", DPay::Money.pln(1050))
+    service.capture("tx-1", DPay::Money.pln(2999))
 
-    expect(transport.last_request.body).to eq('{"amount":10.5}')
     expect(transport.last_request.url).to eq("https://api-payments.dpay.pl/api/v1_0/cards/payment/tx-1/capture")
+    # sha256(capture|service|transaction_id|amount|hash)
+    expect(transport.last_request.body).to eq(
+      '{"service":"test_service","amount":29.99,' \
+      '"checksum":"835182d11c896a412912bee6fb3baf0670051bde45ec7a1810c1748ec143bc27"}'
+    )
   end
 
-  it "cancels with and without an amount" do
+  it "signs a cancellation with an empty amount segment when there is no amount" do
     transport.queue_json(200, { "success" => true, "message" => { "redirectType" => "SUCCESS" } })
     service.cancel("tx-1")
-    expect(transport.last_request.body).to eq("{}")
+    # sha256(cancellation|service|transaction_id||hash)
+    expect(transport.last_request.body).to eq(
+      '{"service":"test_service","checksum":"4f7656fc0700af82b74a940df21fd3075311bbb71dfd7266ed0895e5f459e368"}'
+    )
 
     transport.queue_json(200, { "success" => true, "message" => { "redirectType" => "SUCCESS" } })
-    service.cancel("tx-1", DPay::Money.pln(2000))
-    expect(transport.last_request.body).to eq('{"amount":20}')
+    service.cancel("tx-1", DPay::Money.pln(100))
+    expect(transport.last_request.body).to eq(
+      '{"service":"test_service","amount":1,' \
+      '"checksum":"1b0c0c82a4af6dec880d17a3f46ca0821ed36467afbdffb43ceafe5bc5f57eca"}'
+    )
+  end
+
+  it "matches the shared capture vector" do
+    vectors = ApiVectors.data
+    recorder = DPay::Testing::MockHttpClient.new
+    recorder.queue_json(200, { "success" => true, "message" => { "redirectType" => "SUCCESS" } })
+    vector_config = DPay::Config.new(service: vectors["service"], secret_hash: vectors["secret_hash"])
+
+    described_class.new(DPay::Internal::ApiRequestor.new(vector_config, recorder))
+                   .capture(vectors["transaction_id"], DPay::Money.pln(5999))
+
+    vector = vectors["operation"].find { |item| item["name"] == "capture_59_99" }
+    expect(recorder.last_request_body["checksum"]).to eq(vector["checksum"])
+  end
+
+  it "sends a capture webhook target outside the checksum" do
+    transport.queue_json(200, { "success" => true, "message" => { "redirectType" => "SUCCESS" } })
+
+    service.capture(
+      "tx-1", DPay::Money.pln(1500),
+      DPay::WebhookTarget.create("https://shop.test/webhooks/captures", ["payment.captured"])
+    )
+
+    expect(transport.last_request.body).to eq(
+      '{"service":"test_service","amount":15,' \
+      '"webhook":{"url":"https://shop.test/webhooks/captures","events":["payment.captured"]},' \
+      '"checksum":"424c5c1916bdffb3cfc28f8421973c9b7a68b2cddb4f6f0e6e237fc9f45ede5c"}'
+    )
+  end
+
+  it "accepts only payment.captured in a capture webhook target" do
+    target = DPay::WebhookTarget.create("https://shop.test/webhooks", ["refund.failed"])
+
+    expect { service.capture("tx-1", DPay::Money.pln(100), target) }
+      .to raise_error(DPay::InvalidArgumentError, /webhook object of a card capture/)
+    expect(transport.requests).to be_empty
   end
 
   it "sends wallet payments" do

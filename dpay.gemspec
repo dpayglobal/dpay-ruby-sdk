@@ -9,7 +9,8 @@ Gem::Specification.new do |spec|
   spec.email = ["info@dpay.pl"]
 
   spec.summary = "Official dpay.pl Ruby SDK"
-  spec.description = "Ruby client for the dpay.pl payments API: payments, refunds, banks, BLIK, cards and payouts."
+  spec.description = "Ruby client for the dpay.pl payments API: payments, recurring payments, refunds, banks, BLIK, " \
+                     "cards, payouts and webhooks."
   spec.homepage = "https://dpay.pl"
   spec.license = "Apache-2.0"
   spec.required_ruby_version = ">= 3.1"
