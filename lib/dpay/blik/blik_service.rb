@@ -23,15 +23,6 @@ module DPay
       nil
     end
 
-    def recurring_status(alias_value)
-      body = { "service" => @api.service, "alias_value" => alias_value }
-      body["checksum"] = @api.checksum.secret_second(@api.service, [alias_value])
-
-      data = @api.post_json(Internal::BaseUrls::API_PAYMENTS, "/api/v1_0/payments/blik/recurring/status", body)
-
-      BlikRecurringStatus.from_api(payload(data))
-    end
-
     private
 
     def alias_body(alias_value, alias_type, reason = nil)

@@ -9,6 +9,8 @@ module DPay
     attr_reader blik: BlikService
     attr_reader cards: CardService
     attr_reader payouts: PayoutService
+    attr_reader recurring: RecurringService
+    attr_reader events: EventService
 
     def initialize: (
       service: String,

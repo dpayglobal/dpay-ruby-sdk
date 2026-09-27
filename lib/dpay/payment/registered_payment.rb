@@ -38,5 +38,24 @@ module DPay
 
       additional["card_recurring_alias"]
     end
+
+    # Alias of the recurring payment registered with this payment (with_recurring_registration).
+    def recurring_alias
+      value = recurring_registration["alias"]
+      value.is_a?(String) ? value : nil
+    end
+
+    def recurring_methods
+      names = recurring_registration["methods"]
+      names.is_a?(Array) ? names.grep(String) : []
+    end
+
+    private
+
+    def recurring_registration
+      additional = @raw["additionalInfo"]
+      registration = additional.is_a?(Hash) ? additional["recurring_registration"] : nil
+      registration.is_a?(Hash) ? registration : {}
+    end
   end
 end

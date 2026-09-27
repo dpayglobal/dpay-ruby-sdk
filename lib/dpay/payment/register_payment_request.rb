@@ -1,12 +1,18 @@
 # frozen_string_literal: true
 
+require "resolv"
+
 module DPay
   class RegisterPaymentRequest
     BLIK_CODE = /\A\d{6}\z/
     PARTNER_PLATFORM = /\A[A-Z0-9]{1,64}\z/
     HTTP_URL = %r{\Ahttps?://[^\s]+\z}
+    CONTROL_CHARACTERS = /[\x00-\x1F\x7F]/
+    RECURRING_ALIAS_MAX = 128
+    REFERENCE_MAX = 64
     TOGGLES = { "creditcard" => :@credit_card, "paysafecard" => :@paysafecard, "blik" => :@blik,
                 "installment" => :@installment, "paypal" => :@paypal, "nobanks" => :@no_banks }.freeze
+    RECURRING_CONFLICTS = %w[blik_alias register_blik_alias register_card_recurring card_recurring_alias].freeze
 
     attr_reader :amount
 
@@ -21,6 +27,7 @@ module DPay
       @transaction_type = transaction_type
       @urls = urls
       @optional = {}
+      @recurring_registration = nil
     end
 
     def with_description(description)
@@ -103,9 +110,10 @@ module DPay
     end
 
     def with_blik_alias(alias_value, user_agent, user_ip)
-      if @optional.key?("blik_code") || @optional.key?("register_blik_alias") ||
-         @optional.key?("register_blik_recurring_alias")
-        raise InvalidArgumentError, "blik_alias cannot be combined with blik_code or alias registration"
+      if %w[blik_code register_blik_alias recurring_alias].any? { |key| @optional.key?(key) } ||
+         !@recurring_registration.nil?
+        raise InvalidArgumentError,
+              "blik_alias cannot be combined with blik_code, alias registration or recurring payments"
       end
 
       set("blik_alias", alias_value)
@@ -121,12 +129,47 @@ module DPay
       set("register_blik_alias", registration.to_h)
     end
 
-    def with_register_blik_recurring_alias(registration)
-      if @optional.key?("blik_alias")
-        raise InvalidArgumentError, "register_blik_recurring_alias cannot be combined with blik_alias"
+    # Registers a recurring payment together with this payment. Requires the customer's BLIK code (with_blik_code)
+    # and transactionType "transfers"; the amount may be 0 (consent only) or an initial fee.
+    def with_recurring_registration(registration)
+      @recurring_registration = registration
+      self
+    end
+
+    # Charges a registered recurring payment server-to-server (no BLIK code): transactionType "transfers", amount
+    # above 0. The alias is appended to the checksum, binding the charge to that customer.
+    def with_recurring_alias(alias_value)
+      unless alias_value.is_a?(String) && !alias_value.empty? && alias_value.bytesize <= RECURRING_ALIAS_MAX
+        raise InvalidArgumentError, "Recurring alias must be 1-128 characters"
       end
 
-      set("register_blik_recurring_alias", registration.to_h)
+      set("recurring_alias", alias_value)
+    end
+
+    # Payer's user agent and IP for a recurring charge (optional there; BLIK code and alias payments set them in
+    # with_blik_code / with_blik_alias).
+    def with_client_context(user_agent, user_ip)
+      raise InvalidArgumentError, %(Invalid user IP "#{user_ip}") unless ip_address?(user_ip)
+
+      set("user_agent", user_agent)
+      set("user_ip", user_ip)
+    end
+
+    # Sends this payment's events (and later events of its refunds and recurring payment) also to this URL, signed
+    # with the service's webhook secret. Not part of the checksum.
+    def with_webhook(webhook)
+      webhook.assert_events_allowed(WebhookEventType::PAYMENT_REGISTRATION, "a payment registration")
+      set("webhook", webhook.to_h)
+    end
+
+    # Your reference of the payment (max 64 characters), returned as references.merchant in webhooks.
+    def with_reference(reference)
+      trimmed = reference.is_a?(String) ? Internal::PHP.trim(reference) : ""
+      if trimmed.empty? || trimmed.length > REFERENCE_MAX || CONTROL_CHARACTERS.match?(trimmed)
+        raise InvalidArgumentError, "Reference must be 1-64 characters without control characters"
+      end
+
+      set("reference", trimmed)
     end
 
     def with_alias_ipn_url(url)
@@ -194,14 +237,17 @@ module DPay
     end
 
     def to_body(service)
+      assert_recurring_combination
+
+      # @type var body: Hash[String, untyped]
       body = {
         "service" => service,
         "value" => @amount.to_decimal,
         "transactionType" => @transaction_type,
         "url_success" => @urls.success,
-        "url_fail" => @urls.fail,
-        "url_ipn" => @urls.ipn
+        "url_fail" => @urls.fail
       }
+      body["url_ipn"] = @urls.ipn unless @urls.ipn.nil?
 
       append(body, "description")
       append(body, "custom")
@@ -209,10 +255,12 @@ module DPay
       append(body, "accept_tos")
       append(body, "channel")
       append_toggles(body)
-      %w[phone_number currency_code partner_platform user_agent user_ip blik_code blik_alias register_blik_alias
-         register_blik_recurring_alias alias_ipn_url no_delay register_card_recurring card_recurring_alias
-         authorize_only card_recurring_operation payout billing_address shipping_address device_info products
-         efaktura invoice].each { |key| append(body, key) }
+      %w[phone_number currency_code partner_platform user_agent user_ip blik_code blik_alias
+         register_blik_alias].each { |key| append(body, key) }
+      body["recurring_registration"] = @recurring_registration.to_h unless @recurring_registration.nil?
+      %w[recurring_alias alias_ipn_url no_delay register_card_recurring card_recurring_alias authorize_only
+         card_recurring_operation payout billing_address shipping_address device_info products efaktura invoice
+         webhook reference].each { |key| append(body, key) }
 
       body
     end
@@ -240,6 +288,37 @@ module DPay
       TOGGLES.each do |key, variable|
         flag = instance_variable_defined?(variable) ? instance_variable_get(variable) : nil
         body[key] = flag ? 1 : 0 unless flag.nil?
+      end
+    end
+
+    def ip_address?(value)
+      value.is_a?(String) && !value.include?("%") &&
+        (Resolv::IPv4::Regex.match?(value) || Resolv::IPv6::Regex.match?(value))
+    end
+
+    # Checked when the body is built, like the API: a registration needs the BLIK code and excludes "channel",
+    # a charge needs an amount above 0 and excludes "blik_code"; both exclude the other alias kinds.
+    def assert_recurring_combination
+      charge = !@optional["recurring_alias"].nil?
+      return if @recurring_registration.nil? && !charge
+
+      if !@recurring_registration.nil? && charge
+        raise InvalidArgumentError, "recurring_registration cannot be combined with recurring_alias"
+      end
+      unless @transaction_type == TransactionType::TRANSFERS
+        raise InvalidArgumentError, %(Recurring payments require transactionType "transfers")
+      end
+
+      assert_recurring_requirements(charge)
+      conflict = (RECURRING_CONFLICTS + [charge ? "blik_code" : "channel"]).find { |key| !@optional[key].nil? }
+      raise InvalidArgumentError, "#{conflict} cannot be combined with a recurring payment" unless conflict.nil?
+    end
+
+    def assert_recurring_requirements(charge)
+      if charge
+        raise InvalidArgumentError, "A recurring charge requires an amount above 0" unless @amount.minor.positive?
+      elsif @optional["blik_code"].nil?
+        raise InvalidArgumentError, "recurring_registration requires the customer's BLIK code (with_blik_code)"
       end
     end
   end

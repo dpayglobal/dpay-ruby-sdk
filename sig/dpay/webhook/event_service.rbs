@@ -1,0 +1,21 @@
+module DPay
+  class EventService
+    PATH: String
+    STARTING_AFTER: Regexp
+    DATE_FIELDS: Array[String]
+    LIMIT: Range[Integer]
+
+    type params = Hash[String | Symbol, untyped]
+
+    def initialize: (Internal::ApiRequestor api) -> void
+    def list: (?params params, ?Integer? timestamp) -> EventPage
+    def iterate: (?params params) { (WebhookEvent event) -> void } -> nil
+               | (?params params) -> Enumerator[WebhookEvent, nil]
+
+    private
+
+    def append_types: (Hash[String, untyped] body, untyped types) -> void
+    def append_starting_after: (Hash[String, untyped] body, untyped starting_after) -> void
+    def append_limit: (Hash[String, untyped] body, untyped limit) -> void
+  end
+end

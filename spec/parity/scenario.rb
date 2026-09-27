@@ -25,6 +25,8 @@ module ParityScenario
     panel_calls(dpay, recorder)
     blik_calls(dpay, recorder)
     card_calls(dpay, recorder, device)
+    recurring_calls(dpay, recorder)
+    webhook_calls(dpay, recorder)
 
     recorder.requests
   end
@@ -97,16 +99,21 @@ module ParityScenario
   def register_blik_recurring_payment(dpay, recorder)
     recorder.queue_json(200, { "transactionId" => "tx-2", "msg" => "Transaction paid" })
     dpay.payments.register(
-      DPay::RegisterPaymentRequest.create(DPay::Money.pln(1000), DPay::TransactionType::BLIK_RECURRING, urls)
+      DPay::RegisterPaymentRequest.create(DPay::Money.pln(1000), DPay::TransactionType::TRANSFERS, urls)
         .with_blik_code("123456", "UA/1.0", "10.0.0.1")
-        .with_register_blik_recurring_alias(
-          DPay::BlikRecurringRegistration.create("Subskrypcja", "M", "12M")
-            .with_value(DPay::Money.pln(4999))
+        .with_recurring_registration(
+          DPay::RecurringRegistration.create(
+            "Subskrypcja", DPay::RecurringRegistration::MODEL_M, "https://shop.test/regulamin"
+          )
+            .with_alias("SUB-1")
+            .with_frequency("12M")
             .with_limit_amt(100_000)
             .with_tot_limit_amt(500_000)
             .with_limit_amt_fixed(true)
             .with_expiration_date("2027-01-01")
             .with_init_date("2026-08-01")
+            .with_methods([DPay::RecurringRegistration::METHOD_BLIK])
+            .with_terms_version("2026-09")
         )
     )
   end
@@ -117,7 +124,7 @@ module ParityScenario
       DPay::RegisterPaymentRequest.create(
         DPay::Money.of(500, DPay::Currency::CZK), DPay::TransactionType::CARD_RECURRING, urls
       )
-        .with_register_blik_alias(DPay::BlikAliasRegistration.new("Moj alias", "PAYID"))
+        .with_register_blik_alias(DPay::BlikAliasRegistration.new("Moj alias", "UID"))
         .with_card_recurring(
           DPay::CardRecurringRegistration.create("Mandat")
             .with_frequency("MONTHLY")
@@ -161,10 +168,10 @@ module ParityScenario
     dpay.blik.alias("a-1")
 
     recorder.queue_json(200, { "data" => {} })
-    dpay.blik.unregister_alias("a-1", "PAYID", "user request")
+    dpay.blik.unregister_alias("a-1", "UID", "user request")
 
-    recorder.queue_json(200, { "data" => { "alias_value" => "a-1" } })
-    dpay.blik.recurring_status("a-1")
+    recorder.queue_json(200, { "data" => { "alias" => "a-1" } })
+    dpay.recurring.status("a-1")
   end
 
   def card_calls(dpay, recorder, device)
@@ -206,5 +213,50 @@ module ParityScenario
 
     recorder.queue_json(200, SUCCESS)
     dpay.cards.apple_pay("tx-1", DPay::ApplePayRequest.pay("ap-token", device).with_channel_id(91))
+  end
+
+  def recurring_calls(dpay, recorder)
+    recorder.queue_json(200, { "error" => false, "msg" => "Internal processing", "status" => true,
+                               "transactionId" => "tx-4" })
+    dpay.payments.register(
+      DPay::RegisterPaymentRequest.create(
+        DPay::Money.pln(4999), DPay::TransactionType::TRANSFERS,
+        DPay::ReturnUrls.new("https://shop.test/ok", "https://shop.test/fail")
+      )
+        .with_recurring_alias("SUB-1")
+        .with_client_context("UA/1.0", "10.0.0.1")
+        .with_description("Abonament 10/2026")
+        .with_webhook(DPay::WebhookTarget.create("https://shop.test/webhooks", %w[payment.succeeded payment.failed]))
+        .with_reference("order-77")
+    )
+
+    recorder.queue_json(200, { "status" => "success",
+                               "data" => { "transactionId" => "tx-4",
+                                           "retry" => { "status" => "pending", "count" => 1 } } })
+    dpay.recurring.retry("tx-4")
+
+    recorder.queue_json(200, { "status" => "success", "data" => { "alias" => "SUB-1", "status" => "UNREGISTERED" } })
+    dpay.recurring.cancel("SUB-1", "Rezygnacja")
+  end
+
+  def webhook_calls(dpay, recorder)
+    recorder.queue_json(200, { "status" => "success", "refund" => true })
+    dpay.refunds.create(
+      "tx-1", DPay::Money.pln(500), "reklamacja",
+      DPay::WebhookTarget.create("https://shop.test/webhooks/refunds", %w[refund.succeeded refund.failed])
+    )
+
+    recorder.queue_json(200, SUCCESS)
+    dpay.cards.capture(
+      "tx-1", DPay::Money.pln(1500),
+      DPay::WebhookTarget.create("https://shop.test/webhooks/captures", ["payment.captured"])
+    )
+
+    recorder.queue_json(200, { "status" => "success", "data" => [], "has_more" => false,
+                               "next_starting_after" => nil })
+    dpay.events.list(
+      { types: %w[payment.succeeded refund.failed], created_from: "2026-09-01T00:00:00Z", limit: 10 },
+      1_784_700_000
+    )
   end
 end

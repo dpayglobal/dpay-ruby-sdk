@@ -3,7 +3,6 @@ module DPay
     def initialize: (Internal::ApiRequestor api) -> void
     def alias: (String alias_value, ?String alias_type) -> BlikAlias
     def unregister_alias: (String alias_value, ?String alias_type, ?String? reason) -> nil
-    def recurring_status: (String alias_value) -> BlikRecurringStatus
 
     private
 

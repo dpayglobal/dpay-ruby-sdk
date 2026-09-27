@@ -3,9 +3,14 @@ module DPay
     BLIK_CODE: Regexp
     PARTNER_PLATFORM: Regexp
     HTTP_URL: Regexp
+    CONTROL_CHARACTERS: Regexp
+    RECURRING_ALIAS_MAX: Integer
+    REFERENCE_MAX: Integer
     TOGGLES: Hash[String, Symbol]
+    RECURRING_CONFLICTS: Array[String]
 
     @optional: Hash[String, untyped]
+    @recurring_registration: RecurringRegistration?
 
     attr_reader amount: Money
 
@@ -30,7 +35,11 @@ module DPay
     def with_blik_code: (String blik_code, String user_agent, String user_ip) -> self
     def with_blik_alias: (String alias_value, String user_agent, String user_ip) -> self
     def with_register_blik_alias: (BlikAliasRegistration registration) -> self
-    def with_register_blik_recurring_alias: (BlikRecurringRegistration registration) -> self
+    def with_recurring_registration: (RecurringRegistration registration) -> self
+    def with_recurring_alias: (String alias_value) -> self
+    def with_client_context: (String user_agent, String user_ip) -> self
+    def with_webhook: (WebhookTarget webhook) -> self
+    def with_reference: (String reference) -> self
     def with_alias_ipn_url: (String url) -> self
     def with_no_delay: (bool no_delay) -> self
     def with_card_recurring: (CardRecurringRegistration registration) -> self
@@ -52,5 +61,8 @@ module DPay
     def append: (Hash[String, untyped] body, String key) -> void
     def append_payer: (Hash[String, untyped] body) -> void
     def append_toggles: (Hash[String, untyped] body) -> void
+    def ip_address?: (untyped value) -> bool
+    def assert_recurring_combination: () -> void
+    def assert_recurring_requirements: (bool charge) -> void
   end
 end

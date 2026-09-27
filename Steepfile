@@ -11,6 +11,7 @@ target :lib do
   library "openssl"
   library "uri"
   library "net-http"
+  library "resolv"
 
   configure_code_diagnostics do |hash|
     hash[D::Ruby::UnannotatedEmptyCollection] = :information

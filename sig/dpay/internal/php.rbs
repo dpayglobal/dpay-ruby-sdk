@@ -3,7 +3,9 @@ module DPay
     module PHP
       SAFE_INTEGRAL_FLOAT: Integer
       NON_UNRESERVED: Regexp
+      TRIM_EDGES: Regexp
 
+      def self?.trim: (String value) -> String
       def self?.strval: (untyped value) -> String
       def self?.round: (Float value) -> Integer
       def self?.json_encode: (untyped data, ?escape_slashes: bool) -> String

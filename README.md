@@ -46,8 +46,83 @@ redirect_to payment.redirect_url if payment.redirect_url
 
 `DPay::Money.pln(1050)` przyjmuje kwotę w groszach (najmniejszej jednostce), czyli 10,50 PLN.
 `RegisterPaymentRequest` to budowniczy: każda metoda `with_*` zwraca `self`, więc wywołania można łączyć w łańcuch.
+Adres IPN w `ReturnUrls` jest opcjonalny - bez niego IPN nie przychodzi, a wynik płatności dostaniesz webhookiem.
+
+## Płatności cykliczne
+
+Rejestracja idzie razem z płatnością kodem BLIK klienta (kwota `0` - sama zgoda, więcej - opłata inicjalna).
+Kolejne obciążenia wysyła Twój serwer, bez kodu.
+
+```ruby
+urls = DPay::ReturnUrls.new("https://twojsklep.pl/sukces", "https://twojsklep.pl/blad")
+
+registration = dpay.payments.register(
+  DPay::RegisterPaymentRequest
+    .create(DPay::Money.pln(0), DPay::TransactionType::TRANSFERS, urls)
+    .with_blik_code(kod_blik, request.user_agent, request.remote_ip)
+    .with_recurring_registration(
+      DPay::RecurringRegistration
+        .create("Abonament Premium", DPay::RecurringRegistration::MODEL_O, "https://twojsklep.pl/regulamin")
+        .with_alias("SUB-1234")
+    )
+)
+registration.recurring_alias # => "SUB-1234"
+
+charge = dpay.payments.register(
+  DPay::RegisterPaymentRequest
+    .create(DPay::Money.pln(4999), DPay::TransactionType::TRANSFERS, urls)
+    .with_recurring_alias("SUB-1234")
+    .with_description("Abonament Premium 10/2026")
+)
+
+status = dpay.recurring.status("SUB-1234")  # status.status: ACTIVE, INACTIVE, UNREGISTERED, EXPIRED, DECLINED
+dpay.recurring.retry(charge.transaction_id) # po odmowie, np. INSUFFICIENT_FUNDS
+dpay.recurring.cancel("SUB-1234", "Rezygnacja klienta")
+```
+
+Model `A` (stała kwota) wymaga `with_frequency`, `with_limit_amt`, `with_tot_limit_amt` (kwoty w groszach),
+`with_expiration_date` i `with_init_date`, model `M` przyjmuje je opcjonalnie, a model `O` ich nie dopuszcza.
+Obciążenie wiąże alias z sumą kontrolną, a anulowanie ma własną sumę - SDK liczy obie.
+Limity API: `status` do 60, `retry` i `cancel` do 30 zapytań na minutę (licznik wspólny z resztą API
+płatności z tego adresu IP) - nie odpytuj statusu w pętli, wynik przychodzi webhookiem.
+
+## Webhooki
+
+Zdarzenia (`payment.succeeded`, `refund.failed`, `recurring_payment.canceled` i inne) są podpisane
+(Standard Webhooks). Weryfikuj je na surowym body, przed parsowaniem JSON:
+
+```ruby
+begin
+  event = DPay::WebhookVerifier.construct_event(
+    request.raw_post,
+    request.headers,
+    ENV.fetch("DPAY_WEBHOOK_SECRET") # sekret endpointu z panelu (whsec_...); w czasie rotacji tablica sekretów
+  )
+rescue DPay::SignatureVerificationError
+  return head :bad_request
+end
+
+payment = event.object if event.type == DPay::WebhookEventType::PAYMENT_SUCCEEDED # Hash, kwoty w groszach
+
+head :ok
+```
+
+Nagłówki podajesz jako `Hash` (albo obiekt z `#each` zwracającym nazwę i wartość) z kluczami `String` lub `Symbol`
+w dowolnej wielkości liter (`"webhook-id"`, `"Webhook-Id"`, `:webhook_id`) albo w formacie Rack (`"HTTP_WEBHOOK_ID"`),
+więc zadziała zarówno `request.headers` w Rails, jak i `request.env` w Rack i Sinatrze. Wartość nagłówka może być
+tablicą - liczy się pierwszy element. Znacznik czasu może odbiegać od zegara serwera najwyżej o 300 sekund
+(`DPay::WebhookVerifier::DEFAULT_TOLERANCE`, inną wartość podasz czwartym argumentem). Sama weryfikacja bez
+parsowania: `DPay::WebhookVerifier.verify` z tymi samymi argumentami.
+
+Deduplikuj zdarzenia po `event.id`. Historię zdarzeń (np. po awarii endpointu) pobierzesz przez
+`dpay.events.iterate(types: ["payment.succeeded"]) { |event| ... }` albo stronami przez `dpay.events.list`.
+
+Własny adres zdarzeń jednej płatności: `.with_webhook(DPay::WebhookTarget.create("https://twojsklep.pl/webhooks"))`
+(podpisywany sekretem webhooków serwisu), a Twój identyfikator zamówienia w zdarzeniach: `.with_reference("order-1234")`.
 
 ## Obsługa IPN
+
+IPN przychodzi tylko wtedy, gdy podasz adres IPN w `ReturnUrls`.
 
 Brama traktuje jako potwierdzenie dokładnie treść odpowiedzi, nie kod HTTP. Musi to być dokładnie napis
 `"OK"` (dostępny jako stała `DPay::IpnEvent::ACK`) - jakikolwiek inna treść w body oznacza dla dpay.pl,
@@ -60,7 +135,7 @@ rescue DPay::SignatureVerificationError
   return render plain: "Invalid signature", status: :bad_request
 end
 
-mark_order_as_paid(event.id, event.amount) if event.transfer? || event.capture?
+mark_order_as_paid(event.id, event.amount) if event.transfer?
 
 render plain: DPay::IpnEvent::ACK
 ```
@@ -74,6 +149,14 @@ zamiast ufać wyłącznie faktowi otrzymania powiadomienia.
 ```ruby
 dpay.refunds.create("identyfikator-transakcji")
 dpay.refunds.create("identyfikator-transakcji", DPay::Money.pln(500), "reklamacja")
+
+# Odpowiedź oznacza przyjęcie zwrotu - wynik przychodzi zdarzeniem refund.succeeded / refund.failed
+dpay.refunds.create(
+  "identyfikator-transakcji",
+  DPay::Money.pln(500),
+  nil,
+  DPay::WebhookTarget.create("https://twojsklep.pl/webhooks/zwroty", %w[refund.succeeded refund.failed])
+)
 
 availability = dpay.refunds.check_availability("identyfikator-transakcji")
 availability.available?
@@ -119,6 +202,18 @@ offer = result.dcc_offer if result.dcc_offer?
 
 Klucz publiczny jest rotowany - pobieraj go przed każdą próbą płatności, nie przechowuj go u siebie.
 
+Po preautoryzacji (`pre_auth`) pobierasz środki przez `capture` albo zwalniasz je przez `cancel`. Oba wywołania
+SDK podpisuje sumą kontrolną operacji; `capture` przyjmuje też własny adres zdarzenia `payment.captured`:
+
+```ruby
+dpay.cards.capture(
+  "identyfikator-transakcji",
+  DPay::Money.pln(2999),
+  DPay::WebhookTarget.create("https://twojsklep.pl/webhooks", ["payment.captured"])
+)
+dpay.cards.cancel("identyfikator-transakcji") # bez kwoty: cała nieprzechwycona reszta
+```
+
 ## Obsługa błędów
 
 Wszystkie wyjątki SDK dołączają moduł `DPay::Error`, więc `rescue DPay::Error` łapie każdy z nich.
@@ -130,7 +225,8 @@ rescue DPay::InvalidRequestError => e
   e.field_errors
 rescue DPay::ApiError => e
   e.http_status
-  e.error_code
+  e.error_code # np. CHECKSUM_REQUIRED, WEBHOOK_URL_INVALID
+  e.reason     # szczegół kodu, np. "https_required" przy WEBHOOK_URL_INVALID
 rescue DPay::TransportError
   # błąd sieci - status płatności jest nieznany, sprawdź go przez payments.details()
 rescue DPay::Error => e
@@ -146,9 +242,9 @@ end
 | `DPay::NotFoundError` | HTTP 404 |
 | `DPay::RateLimitError` | HTTP 429, dodatkowo `retry_after`, `limit`, `remaining` |
 | `DPay::ApiServerError` | HTTP 5xx |
-| `DPay::PaymentRejectedError` | rejestracja płatności odrzucona mimo HTTP 200 |
+| `DPay::PaymentRejectedError` | rejestracja płatności odrzucona mimo HTTP 200, dodatkowo `transaction_id`, `error_description` |
 | `DPay::CardPaymentError` | płatność kartą odrzucona mimo HTTP 200 |
-| `DPay::SignatureVerificationError` | niepoprawny lub brakujący podpis IPN |
+| `DPay::SignatureVerificationError` | niepoprawny lub brakujący podpis IPN albo webhooka |
 | `DPay::TransportError` | błąd sieci lub transportu HTTP |
 | `DPay::InvalidArgumentError` | niepoprawny argument przekazany do SDK |
 

@@ -13,10 +13,12 @@ module DPay
     def signature: () -> String
     def email: () -> String?
     def custom: () -> String?
+    %a{deprecated: dpay no longer sends capture IPNs - use the payment.captured webhook event}
     def capture_payment_id: () -> String?
     def attempt: () -> Integer
     def version: () -> Integer
     def transfer?: () -> bool
+    %a{deprecated: dpay no longer sends capture IPNs - use the payment.captured webhook event}
     def capture?: () -> bool
     def dcb?: () -> bool
 

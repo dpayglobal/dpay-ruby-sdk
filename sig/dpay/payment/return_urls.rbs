@@ -4,8 +4,8 @@ module DPay
 
     attr_reader success: String
     attr_reader fail: String
-    attr_reader ipn: String
+    attr_reader ipn: String?
 
-    def initialize: (String success, String fail, String ipn) -> void
+    def initialize: (String success, String fail, ?String? ipn) -> void
   end
 end

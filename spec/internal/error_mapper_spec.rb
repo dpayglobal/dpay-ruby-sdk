@@ -48,4 +48,36 @@ RSpec.describe DPay::Internal::ErrorMapper do
     expect(map(400, '{"error":true,"msg":"Bad request"}').message).to eq("Bad request")
     expect(map(500, "boom").message).to eq("Unexpected API error")
   end
+
+  it "maps the code and reason of cards and webhook errors" do
+    body = '{"success":false,"status":"error","code":"WEBHOOK_URL_INVALID","reason":"https_required",' \
+           '"message":"Invalid webhook URL: https_required"}'
+    error = map(400, body)
+
+    expect(error).to be_a(DPay::InvalidRequestError)
+    expect(error.error_code).to eq("WEBHOOK_URL_INVALID")
+    expect(error.reason).to eq("https_required")
+    expect(error.message).to eq("Invalid webhook URL: https_required")
+  end
+
+  it "maps a missing checksum to an authentication error" do
+    error = map(
+      401, '{"success":false,"status":"error","code":"CHECKSUM_REQUIRED","message":"Missing service or checksum"}'
+    )
+
+    expect(error).to be_a(DPay::AuthenticationError)
+    expect(error.error_code).to eq("CHECKSUM_REQUIRED")
+    expect(error.reason).to be_nil
+  end
+
+  it "prefers code over the legacy errorcode" do
+    expect(map(409, '{"code":"CONNECT_REFUND_REQUIRES_FINANCIAL_PLAN","errorcode":"err01"}').error_code)
+      .to eq("CONNECT_REFUND_REQUIRES_FINANCIAL_PLAN")
+  end
+
+  it "keeps field errors sent as an empty JSON list" do
+    error = map(400, '{"status":"failed","message":"Recurring payments are not available.","errors":[]}')
+
+    expect(error.field_errors).to eq({})
+  end
 end

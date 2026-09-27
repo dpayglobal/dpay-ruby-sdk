@@ -1,7 +1,6 @@
 module DPay
   module BlikAliasType
     UID: String
-    PAYID: String
 
     ALL: Array[String]
 

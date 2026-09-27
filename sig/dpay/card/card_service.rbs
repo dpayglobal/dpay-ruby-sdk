@@ -4,7 +4,7 @@ module DPay
     def public_key: () -> String
     def pay_otp: (String transaction_id, CardPaymentRequest request) -> CardPaymentResult
     def pre_auth: (String transaction_id, CardPaymentRequest request) -> CardPaymentResult
-    def capture: (String transaction_id, Money amount) -> CardPaymentResult
+    def capture: (String transaction_id, Money amount, ?WebhookTarget? webhook) -> CardPaymentResult
     def cancel: (String transaction_id, ?Money? amount) -> CardPaymentResult
     def google_pay: (String transaction_id, GooglePayRequest request) -> CardPaymentResult
     def apple_pay: (String transaction_id, ApplePayRequest request) -> CardPaymentResult

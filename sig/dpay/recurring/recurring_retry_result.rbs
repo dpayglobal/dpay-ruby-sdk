@@ -1,0 +1,24 @@
+module DPay
+  class RecurringRetryResult
+    STATUS_PENDING: String
+    STATUS_FAILED: String
+    STATUS_SUCCESS: String
+
+    attr_reader transaction_id: String
+    attr_reader status: String?
+    attr_reader count: Integer?
+    attr_reader error_code: String?
+    attr_reader error_description: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> RecurringRetryResult
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def pending?: () -> bool
+    def failed?: () -> bool
+
+    private
+
+    def string: (untyped value) -> String?
+  end
+end

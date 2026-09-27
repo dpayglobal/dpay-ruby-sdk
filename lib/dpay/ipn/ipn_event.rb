@@ -39,6 +39,7 @@ module DPay
       scalar("custom")
     end
 
+    # @deprecated dpay no longer sends capture IPNs - use the "payment.captured" webhook event.
     def capture_payment_id
       scalar("capture_payment_id")
     end
@@ -55,6 +56,7 @@ module DPay
       type == IpnType::TRANSFER
     end
 
+    # @deprecated dpay no longer sends capture IPNs - use the "payment.captured" webhook event.
     def capture?
       type == IpnType::CAPTURE
     end

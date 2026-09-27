@@ -1,0 +1,24 @@
+module DPay
+  class WebhookEvent
+    attr_reader id: String
+    attr_reader type: String
+    attr_reader api_version: String?
+    attr_reader created: String?
+    attr_reader service: String?
+    attr_reader merchant_ref: String?
+    attr_reader object: Hash[String, untyped]
+    attr_reader object_type: String?
+    attr_reader raw: Hash[String, untyped]
+
+    @livemode: bool
+
+    def self.from_api: (Hash[String, untyped] data) -> WebhookEvent
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def livemode?: () -> bool
+
+    private
+
+    def string: (untyped value) -> String?
+  end
+end

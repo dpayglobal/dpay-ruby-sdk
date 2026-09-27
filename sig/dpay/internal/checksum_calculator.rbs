@@ -1,9 +1,16 @@
 module DPay
   module Internal
     class ChecksumCalculator
+      CHECKSUM_KEY: String
+
       def initialize: (String secret_hash) -> void
       def secret_second: (String service, Array[untyped] fields) -> String
-      def ordered_body: (Array[untyped] values) -> String
+      def ordered_body: (Hash[untyped, untyped] | Array[untyped] body) -> String
+      def operation: (String operation, String service, String transaction_id, String? amount) -> String
+
+      private
+
+      def leaves: (untyped value) -> Array[untyped]
     end
   end
 end

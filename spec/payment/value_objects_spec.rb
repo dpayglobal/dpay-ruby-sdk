@@ -13,6 +13,15 @@ RSpec.describe "DPay payment input value objects" do
     it "rejects malformed URLs" do
       expect { described_class.new("not-a-url", "https://shop.test/fail", "https://shop.test/ipn") }
         .to raise_error(DPay::InvalidArgumentError, /success/)
+      expect { described_class.new("https://shop.test/ok", "https://shop.test/fail", "ipn") }
+        .to raise_error(DPay::InvalidArgumentError, /ipn/)
+    end
+
+    it "makes the IPN URL optional" do
+      urls = described_class.new("https://shop.test/ok", "https://shop.test/fail")
+
+      expect(urls.ipn).to be_nil
+      expect(described_class.new("https://shop.test/ok", "https://shop.test/fail", nil).ipn).to be_nil
     end
   end
 

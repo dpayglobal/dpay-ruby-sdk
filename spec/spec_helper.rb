@@ -3,6 +3,7 @@
 require "dpay"
 
 require_relative "support/golden"
+require_relative "support/api_vectors"
 
 RSpec.configure do |config|
   config.disable_monkey_patching!

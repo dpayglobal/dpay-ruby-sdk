@@ -1,0 +1,15 @@
+module DPay
+  class RecurringService
+    CANCEL: String
+
+    def initialize: (Internal::ApiRequestor api) -> void
+    def status: (String alias_value) -> RecurringStatus
+    def retry: (String transaction_id) -> RecurringRetryResult
+    def cancel: (String alias_value, ?String? reason) -> String
+
+    private
+
+    def post: (String path, Hash[String, untyped] body) -> Hash[String, untyped]
+    def payload: (Hash[String, untyped] data) -> Hash[String, untyped]
+  end
+end

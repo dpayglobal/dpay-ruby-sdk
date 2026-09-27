@@ -1,0 +1,45 @@
+module DPay
+  class RecurringRegistration
+    MODEL_A: String
+    MODEL_M: String
+    MODEL_O: String
+    MODELS: Array[String]
+    METHOD_BLIK: String
+    METHODS: Array[String]
+    FREQUENCY: Regexp
+    DATE: Regexp
+    HTTP_URL: Regexp
+    TERMS_URL_MAX: Integer
+    ALIAS_MAX: Integer
+    MODEL_O_FORBIDDEN: Array[String]
+    MODEL_A_REQUIRED: Array[String]
+    OPTIONAL_ORDER: Array[String]
+
+    @label: String
+    @terms_url: String
+    @optional: Hash[String, untyped]
+
+    attr_reader model: String
+
+    def self.create: (String label, String model, String terms_url) -> RecurringRegistration
+
+    def initialize: (String label, String model, String terms_url) -> void
+    def with_alias: (String alias_value) -> self
+    def with_terms_version: (String terms_version) -> self
+    def with_methods: (Array[String] names) -> self
+    def with_frequency: (String frequency) -> self
+    def with_limit_amt: (Integer limit_amt) -> self
+    def with_tot_limit_amt: (Integer tot_limit_amt) -> self
+    def with_limit_amt_fixed: (bool fixed) -> self
+    def with_expiration_date: (String expiration_date) -> self
+    def with_init_date: (String init_date) -> self
+    def to_h: () -> Hash[String, untyped]
+
+    private
+
+    def set: (String key, untyped value) -> self
+    def assert_model_rules: () -> void
+    def assert_positive: (untyped value, String field) -> Integer
+    def assert_date: (untyped date) -> String
+  end
+end

@@ -8,8 +8,12 @@ module DPay
       @api = api
     end
 
-    def create(transaction_id, amount = nil, reason = nil)
-      body = signed_body(transaction_id, amount, reason)
+    # Orders a refund (partial with an amount, the rest of the payment without). A successful response means the
+    # refund was accepted - its outcome comes as a "refund.succeeded" / "refund.failed" event. The optional webhook
+    # target receives the events of this refund and is part of the checksum.
+    def create(transaction_id, amount = nil, reason = nil, webhook = nil)
+      webhook&.assert_events_allowed(WebhookEventType::REFUND, "a refund")
+      body = signed_body(transaction_id, amount, reason, webhook)
 
       Refund.from_api(@api.post_json(Internal::BaseUrls::PANEL, "/api/v1/pbl/refund", body))
     end
@@ -34,11 +38,13 @@ module DPay
       status == 401 && data["message"] != "Unauthorized request"
     end
 
-    def signed_body(transaction_id, amount, reason)
+    def signed_body(transaction_id, amount, reason, webhook = nil)
+      # @type var body: Hash[String, untyped]
       body = { "service" => @api.service, "transaction_id" => transaction_id }
       body["value"] = amount.to_decimal unless amount.nil?
       body["reason"] = reason unless reason.nil?
-      body["checksum"] = @api.checksum.ordered_body(body.values)
+      body["webhook"] = webhook.to_h unless webhook.nil?
+      body["checksum"] = @api.checksum.ordered_body(body)
 
       body
     end

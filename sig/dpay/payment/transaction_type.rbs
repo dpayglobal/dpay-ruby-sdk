@@ -4,8 +4,6 @@ module DPay
     DCB_GATEWAY: String
     CARD_AUTH: String
     MB_WAY_DIRECT: String
-    BIZUM_DIRECT: String
-    BLIK_RECURRING: String
     CARD_RECURRING: String
 
     ALL: Array[String]
