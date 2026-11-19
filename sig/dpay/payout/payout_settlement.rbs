@@ -1,0 +1,16 @@
+module DPay
+  class PayoutSettlement
+    attr_reader settlement: PayoutDetails
+    attr_reader summary_net: Money
+    attr_reader summary_fee: Money
+    attr_reader summary_gross: Money
+    attr_reader summary_count: Integer
+    attr_reader positions: Array[SettlementPosition]
+    attr_reader meta: PageMeta
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> PayoutSettlement
+
+    def initialize: (Hash[String, untyped] data) -> void
+  end
+end

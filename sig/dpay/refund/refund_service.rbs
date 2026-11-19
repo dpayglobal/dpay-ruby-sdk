@@ -1,9 +1,11 @@
 module DPay
   class RefundService
+    MESSAGE_ID_HEADER: String
+    MESSAGE_ID: Regexp
     AVAILABILITY_STATUSES: Array[Integer]
 
     def initialize: (Internal::ApiRequestor api) -> void
-    def create: (String transaction_id, ?Money? amount, ?String? reason, ?WebhookTarget? webhook) -> Refund
+    def create: (String transaction_id, ?Money? amount, ?String? reason, ?WebhookTarget? webhook, ?String? message_id) -> Refund
     def check_availability: (String transaction_id, ?Money? amount, ?String? reason) -> RefundAvailability
 
     private

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "json"
+
 module DPay
   class CardPaymentResult
     attr_reader :redirect_type, :redirect_text, :dcc_offer, :raw
@@ -41,6 +43,19 @@ module DPay
 
     def redirect_url
       requires_redirect? ? decode : nil
+    end
+
+    # Apple Pay merchant session from an APPLE_PAY_INIT call: redirectType FORM with the Base64-encoded
+    # ApplePayMerchantSession JSON in redirectText. Pass it to completeMerchantValidation() on the device.
+    # nil when the response does not carry a JSON object (e.g. a 3-D Secure form).
+    def apple_pay_merchant_session
+      decoded = three_ds_form_html
+      return nil if decoded.nil?
+
+      session = JSON.parse(decoded.dup.force_encoding(Encoding::UTF_8))
+      session.is_a?(Hash) ? session : nil
+    rescue JSON::ParserError, EncodingError
+      nil
     end
 
     private

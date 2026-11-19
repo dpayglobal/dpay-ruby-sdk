@@ -16,6 +16,10 @@ module DPay
 
     def initialize: (Hash[String, untyped] data) -> void
     def livemode?: () -> bool
+    def payment: () -> PaymentObject?
+    def refund: () -> RefundObject?
+    def recurring_payment: () -> RecurringPaymentObject?
+    def payout: () -> PayoutObject?
 
     private
 

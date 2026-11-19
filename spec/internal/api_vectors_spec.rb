@@ -29,6 +29,19 @@ RSpec.describe "Shared API vectors" do
     end
   end
 
+  it "verifies every IPN vector and rejects it with another secret" do
+    expect(ApiVectors.ipn.size).to eq(3)
+
+    ApiVectors.ipn.each do |vector|
+      event = DPay::IpnVerifier.construct_event(vector["body"], vectors["secret_hash"])
+
+      expect(event.id).to eq(vectors["transaction_id"]), vector["name"]
+      expect(event.raw).to eq(vector["payload"]), vector["name"]
+      expect { DPay::IpnVerifier.construct_event(vector["body"], "#{vectors["secret_hash"]}x") }
+        .to raise_error(DPay::SignatureVerificationError, "Invalid IPN signature")
+    end
+  end
+
   it "skips the checksum key and casts values like the API" do
     calculator = DPay::Internal::ChecksumCalculator.new("h")
     body = { "x" => "a", "checksum" => "ignored", "y" => true, "z" => nil, "w" => { "v" => "b" } }

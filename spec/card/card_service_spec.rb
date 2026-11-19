@@ -119,6 +119,69 @@ RSpec.describe DPay::CardService do
       .to raise_error(DPay::CardPaymentError, "DCC_OFFER_EXPIRED")
   end
 
+  it "carries the card decline of an HTTP 200 decline" do
+    transport.queue_json(200, { "success" => false, "status" => "error", "message" => "Payment declined",
+                                "error" => { "code" => "payment_declined", "declineCode" => "05",
+                                             "declineMessage" => "Do not honor" } })
+
+    expect { service.pay_otp("TX-1", DPay::CardPaymentRequest.create(device_info)) }
+      .to raise_error(DPay::CardPaymentError) { |error|
+        expect(error.error_code).to eq("Payment declined")
+        expect(error.card_error.code).to eq("payment_declined")
+        expect(error.card_error.decline_code).to eq("05")
+        expect(error.card_error.decline_message).to eq("Do not honor")
+      }
+  end
+
+  it "returns the Apple Pay merchant session of APPLE_PAY_INIT" do
+    session = { "epochTimestamp" => 1_790_503_500_000, "merchantSessionIdentifier" => "SSH-1", "signature" => "abc" }
+    transport.queue_json(200, { "success" => true, "status" => "success",
+                                "message" => { "redirectType" => "FORM",
+                                               "redirectText" => [JSON.generate(session)].pack("m0") } })
+
+    result = service.apple_pay("TX-1", DPay::ApplePayRequest.init(device_info))
+
+    expect(result.apple_pay_merchant_session).to eq(session)
+    expect(transport.last_request_body).not_to have_key("email")
+  end
+
+  it "decodes the merchant session of the shared vector and no session from a 3-D Secure form" do
+    vector = DPay::CardPaymentResult.from_api(
+      { "message" => { "redirectType" => "FORM", "redirectText" => "eyJlcG9jaFRpbWVzdGFtcCI6MTc5MDUwMzUwMDAwMCwibWVyY" \
+                                                                   "2hhbnRTZXNzaW9uSWRlbnRpZmllciI6IlNTSC0xIn0=" } }
+    )
+    form = DPay::CardPaymentResult.from_api(
+      { "message" => { "redirectType" => "FORM", "redirectText" => "PGZvcm0gbWV0aG9kPSJQT1NUIj48L2Zvcm0+" } }
+    )
+    list = DPay::CardPaymentResult.from_api(
+      { "message" => { "redirectType" => "FORM", "redirectText" => ["[1,2]"].pack("m0") } }
+    )
+    url = DPay::CardPaymentResult.from_api(
+      { "message" => { "redirectType" => "URL", "redirectText" => ["{}"].pack("m0") } }
+    )
+
+    expect(vector.apple_pay_merchant_session)
+      .to eq({ "epochTimestamp" => 1_790_503_500_000, "merchantSessionIdentifier" => "SSH-1" })
+    expect(form.apple_pay_merchant_session).to be_nil
+    expect(form.three_ds_form_html).to eq('<form method="POST"></form>')
+    expect(list.apple_pay_merchant_session).to be_nil
+    expect(url.apple_pay_merchant_session).to be_nil
+  end
+
+  it "sends the Apple Pay email first" do
+    transport.queue_json(200,
+                         { "success" => true, "status" => "success", "message" => { "redirectType" => "SUCCESS" } })
+
+    service.apple_pay(
+      "TX-1", DPay::ApplePayRequest.pay("APPLE-TOKEN", device_info).with_email("client@example.com").with_channel_id(31)
+    )
+
+    body = transport.last_request_body
+    expect(body.keys).to eq(%w[email channelId xPayType xPayToken deviceInfo])
+    expect(body["email"]).to eq("client@example.com")
+    expect(body["xPayType"]).to eq("APPLE_PAY")
+  end
+
   it "validates the DCC decision" do
     expect { DPay::CardPaymentRequest.create(device_info).with_dcc_decision("maybe") }
       .to raise_error(DPay::InvalidArgumentError)

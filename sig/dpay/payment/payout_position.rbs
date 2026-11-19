@@ -1,10 +1,13 @@
 module DPay
   class PayoutPosition
+    POLISH_IBAN: Regexp
+
     attr_reader iban: String
     attr_reader title: String
     attr_reader amount: Money
 
     def initialize: (String iban, String title, Money amount) -> void
+    def self.valid_polish_iban?: (untyped iban) -> bool
     def to_h: () -> Hash[String, untyped]
   end
 end

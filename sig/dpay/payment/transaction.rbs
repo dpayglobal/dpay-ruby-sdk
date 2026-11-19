@@ -1,5 +1,7 @@
 module DPay
   class Transaction
+    INTEGER: Regexp
+
     attr_reader id: String
     attr_reader value: Money
     attr_reader status: String
@@ -21,5 +23,14 @@ module DPay
     def refunded?: () -> bool
     def fully_refunded?: () -> bool
     def direct?: () -> bool
+    def rate: () -> String?
+    def minimal_fee: () -> Integer?
+    def permanent_fee: () -> Integer?
+    def urls: () -> TransactionUrls?
+
+    private
+
+    def transaction_data: () -> Hash[String, untyped]
+    def integer_field: (String key) -> Integer?
   end
 end

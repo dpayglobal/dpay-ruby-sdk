@@ -8,12 +8,35 @@ module DPay
       SAFE_INTEGRAL_FLOAT = 2**53
       NON_UNRESERVED = /[^A-Za-z0-9\-_.~]/n
       TRIM_EDGES = /\A[ \t\n\r\x00\x0B]+|[ \t\n\r\x00\x0B]+\z/
+      # PHP 8 numeric string: optional surrounding whitespace, sign, digits with an optional fraction and exponent.
+      NUMERIC_STRING = /\A[ \t\n\r\v\f]*[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?[ \t\n\r\v\f]*\z/
+      INTEGER_STRING = /\A[ \t\n\r\v\f]*[+-]?\d+[ \t\n\r\v\f]*\z/
 
       module_function
 
       # PHP trim(): strips " \t\n\r\0\x0B" from both ends (String#strip also strips "\f").
       def trim(value)
         value.gsub(TRIM_EDGES, "")
+      end
+
+      # PHP is_scalar(): string, integer, float or boolean.
+      def scalar?(value)
+        value.is_a?(String) || value.is_a?(Integer) || value.is_a?(Float) || value == true || value == false
+      end
+
+      # PHP is_numeric(): integers, floats and numeric strings (not booleans).
+      def numeric?(value)
+        value.is_a?(Integer) || value.is_a?(Float) || (value.is_a?(String) && NUMERIC_STRING.match?(value))
+      end
+
+      # PHP (int) of a value that passed numeric?: truncates fractions and reads exponents ("1e3" -> 1000).
+      def numeric_to_i(value)
+        return value if value.is_a?(Integer)
+        return value.to_i if value.is_a?(Float) && value.finite?
+        return value.strip.to_i if value.is_a?(String) && INTEGER_STRING.match?(value)
+
+        float = Float(value.to_s.strip.sub(/\.(?=[eE]|\z)/, ""))
+        float.finite? ? float.to_i : 0
       end
 
       def strval(value)

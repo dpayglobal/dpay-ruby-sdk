@@ -20,8 +20,16 @@ module DPay
           extract_code(data),
           normalize_field_errors(data["errors"]),
           response.body,
-          data["reason"].is_a?(String) ? data["reason"] : nil
+          data["reason"].is_a?(String) ? data["reason"] : nil,
+          extract_transaction_id(data),
+          data["cardError"].is_a?(Hash) ? CardError.from_api(data["cardError"]) : nil
         )
+      end
+
+      # Payments API: the transaction created before the error (e.g. a declined charge on a saved card).
+      def extract_transaction_id(data)
+        transaction_id = data["transactionId"]
+        transaction_id.is_a?(String) && !transaction_id.empty? ? transaction_id : nil
       end
 
       # "code" (Cards API, webhooks, Connect: CHECKSUM_REQUIRED, WEBHOOK_URL_INVALID, ...), then legacy "errorcode".
@@ -56,7 +64,8 @@ module DPay
           int_header(response, "Retry-After"),
           int_header(response, "X-RateLimit-Limit"),
           int_header(response, "X-RateLimit-Remaining"),
-          response.body
+          response.body,
+          int_header(response, "X-RateLimit-Reset")
         )
       end
 

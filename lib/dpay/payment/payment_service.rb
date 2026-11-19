@@ -16,7 +16,7 @@ module DPay
       data = @api.post_json(Internal::BaseUrls::API_PAYMENTS, "/api/v1_0/payments/register", body)
       raise PaymentRejectedError.from_api(data) if rejected?(data)
 
-      RegisteredPayment.from_api(data)
+      RegisteredPayment.from_api(data, request.amount.currency)
     end
 
     def details(transaction_id)

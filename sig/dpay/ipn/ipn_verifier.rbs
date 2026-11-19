@@ -1,11 +1,15 @@
 module DPay
   module IpnVerifier
     REQUIRED_FIELDS: Array[String]
+    ALIAS_UPDATE_REQUIRED_FIELDS: Array[String]
     INVALID_PAYLOAD: String
 
     def self?.construct_event: (untyped raw_body, String secret_hash) -> IpnEvent
     def self?.parse: (untyped raw_body) -> Hash[String, untyped]
     def self?.expected_signature: (Hash[String, untyped] payload, String secret_hash) -> String
+    def self?.transfer_parts: (Hash[String, untyped] payload, String id, String secret_hash, String type, String version) -> Array[String]
+    def self?.scalar: (untyped value) -> String
+    def self?.numeric: (untyped value) -> String
     def self?.secure_compare: (String expected, String actual) -> bool
   end
 end

@@ -1,0 +1,10 @@
+module DPay
+  module FailureCategory
+    CUSTOMER: String
+    MERCHANT: String
+    RISK: String
+    SYSTEM: String
+
+    ALL: Array[String]
+  end
+end

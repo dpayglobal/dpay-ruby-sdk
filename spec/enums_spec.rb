@@ -116,6 +116,8 @@ RSpec.describe DPay do
   describe DPay::IpnType do
     it "exposes IPN type values" do
       expect(described_class::DCB).to eq("dcb")
+      expect(described_class::ALIAS_UPDATE).to eq("alias_update")
+      expect(described_class.valid?("alias_update")).to be(true)
       expect(described_class::ALL).to be_frozen
     end
 

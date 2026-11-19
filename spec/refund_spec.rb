@@ -55,6 +55,82 @@ RSpec.describe DPay::RefundService do
     expect { service.check_availability("tx-1") }.to raise_error(DPay::AuthenticationError)
   end
 
+  it "returns a missing transaction on 404 as an availability outcome" do
+    transport.queue_json(404, { "status" => "error", "refund" => false, "message" => "Transaction does not exist!",
+                                "0" => "Transaction does not exist!" })
+
+    availability = service.check_availability("TX-404")
+
+    expect(availability).not_to be_available
+    expect(availability.message).to eq("Transaction does not exist!")
+    expect(availability.http_status).to eq(404)
+  end
+
+  it "returns a buyer support refusal on 423 and a business 401 as availability outcomes" do
+    transport.queue_json(423, { "status" => "error", "refund" => false, "code" => "BUYER_SUPPORT_REFUND_NOT_APPLICABLE",
+                                "message" => "Zwrot przez BOK dpay" })
+    expect(service.check_availability("TX-1").http_status).to eq(423)
+
+    transport.queue_json(401, { "refund" => false,
+                                "message" => "Transakcji dokonanych kanałami paysafecard nie można zwrócić" })
+    expect(service.check_availability("TX-1").http_status).to eq(401)
+  end
+
+  it "raises without the refund key and on server errors" do
+    transport.queue_json(404, { "message" => "Not Found" })
+    expect { service.check_availability("TX-1") }.to raise_error(DPay::NotFoundError)
+
+    transport.queue_json(500, { "status" => "error", "refund" => false, "message" => "Server error" })
+    expect { service.check_availability("TX-1") }.to raise_error(DPay::ApiServerError)
+
+    transport.queue_json(401, { "refund" => false, "message" => "Unauthorized request" })
+    expect { service.check_availability("TX-1") }.to raise_error(DPay::AuthenticationError)
+  end
+
+  context "with a refund message id" do
+    let(:config) { DPay::Config.new(service: "MyShop", secret_hash: "secret123", http_client: transport) }
+
+    it "sends the message id in the header, outside the checksum" do
+      transport.queue_json(200, { "status" => "success", "refund" => true, "message" => "dpay.pl zwrot RET-2026-0001" })
+
+      refund = service.create("30D9493D-1D73-3FBD-A5D4-633723CC7A68", nil, nil, nil, "RET-2026-0001")
+
+      body = transport.last_request_body
+      expect(refund.message).to eq("dpay.pl zwrot RET-2026-0001")
+      expect(transport.last_request.headers[DPay::RefundService::MESSAGE_ID_HEADER]).to eq("RET-2026-0001")
+      expect(body.keys).to eq(%w[service transaction_id checksum])
+      expect(body["checksum"]).to eq("3b345f55900ae6a43220dd14a3827ed9a26a02a3eb46b856d302e2baa44b48a4")
+    end
+
+    it "sends no header without a message id" do
+      transport.queue_json(200, { "status" => "success", "refund" => true, "message" => "dpay.pl TX" })
+
+      service.create("TX-1")
+
+      expect(transport.last_request.headers).not_to have_key("DigitalPayments-PSP-Message-ID")
+    end
+
+    it "rejects a message id that is not non-empty printable ASCII" do
+      ["", "   ", "RET\r\nX-Evil: 1", "ZWROT-ŁÓDŹ", "RET-1\n", 42].each do |message_id|
+        expect { service.create("TX-1", nil, nil, nil, message_id) }
+          .to raise_error(DPay::InvalidArgumentError, "Refund message ID must be non-empty printable ASCII")
+      end
+      expect(transport.requests).to be_empty
+    end
+  end
+
+  it "keeps the refund_full vector unchanged by a message id" do
+    vector = ApiVectors.data["ordered_body"].find { |item| item["name"] == "refund_full" }
+    vectors_config = DPay::Config.new(service: ApiVectors.data["service"], secret_hash: ApiVectors.data["secret_hash"],
+                                      http_client: transport)
+    vectors_service = described_class.new(DPay::Internal::ApiRequestor.new(vectors_config, transport))
+    transport.queue_json(200, { "status" => "success", "refund" => true })
+
+    vectors_service.create(vector["body"]["transaction_id"], nil, nil, nil, "RET-1")
+
+    expect(transport.last_request_body["checksum"]).to eq(vector["checksum"])
+  end
+
   it "marks an unaccepted refund" do
     transport.queue_json(200, { "status" => "failed", "refund" => false, "message" => "nope" })
 

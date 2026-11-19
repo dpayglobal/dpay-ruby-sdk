@@ -3,6 +3,8 @@ module DPay
     PLN: String
     EUR: String
     CZK: String
+    USD: String
+    RON: String
     CODE: Regexp
 
     def self.valid?: (untyped code) -> bool

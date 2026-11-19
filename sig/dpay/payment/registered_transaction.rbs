@@ -1,0 +1,30 @@
+module DPay
+  class RegisteredTransaction
+    STATUS_PENDING: String
+    STATUS_PAID: String
+    STATUS_CAPTURED: String
+    STATUS_CANCELED: String
+
+    attr_reader payment_id: String
+    attr_reader status: String?
+    attr_reader value: Money?
+    attr_reader email: String?
+    attr_reader description: String?
+    attr_reader name: String?
+    attr_reader surname: String?
+    attr_reader pid: String?
+    attr_reader mtid: String?
+    attr_reader creation_date: String?
+    attr_reader payment_date: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data, ?String currency) -> RegisteredTransaction
+
+    def initialize: (Hash[String, untyped] data, ?String currency) -> void
+    def paid?: () -> bool
+
+    private
+
+    def string: (untyped value) -> String?
+  end
+end

@@ -77,12 +77,51 @@ RSpec.describe DPay::Error do
     expect(error.http_status).to eq(200)
   end
 
+  it "carries the card decline of a CardPaymentError" do
+    error = DPay::CardPaymentError.from_api(
+      { "success" => false, "status" => "error", "message" => "Payment declined",
+        "error" => { "code" => "payment_declined", "declineCode" => "05", "declineMessage" => "Do not honor" } }
+    )
+
+    expect(error.error_code).to eq("Payment declined")
+    expect(error.card_error.code).to eq("payment_declined")
+    expect(error.card_error.decline_code).to eq("05")
+    expect(error.card_error.decline_message).to eq("Do not honor")
+    expect(DPay::CardPaymentError.from_api({ "success" => false, "message" => "DCC_OFFER_EXPIRED" }).card_error)
+      .to be_nil
+  end
+
+  it "carries the transaction context on ApiError" do
+    card_error = DPay::CardError.from_api({ "code" => "invalid_card", "declineCode" => 14, "declineMessage" => [] })
+    error = DPay::ApiError.new("Declined", 400, nil, {}, "{}", nil, "TX-1", card_error)
+
+    expect(error.transaction_id).to eq("TX-1")
+    expect(error.card_error.decline_code).to eq("14")
+    expect(error.card_error.decline_message).to be_nil
+    expect(DPay::ApiError.new("x", 500).card_error).to be_nil
+  end
+
+  it "keeps the PaymentRejectedError constructor and reads transaction_id from ApiError" do
+    error = DPay::PaymentRejectedError.new("Rejected", 200, "err", {}, "{}", "tx-9", "Insufficient funds")
+
+    expect(error.transaction_id).to eq("tx-9")
+    expect(error.error_description).to eq("Insufficient funds")
+    expect(error.reason).to be_nil
+    expect(error.card_error).to be_nil
+  end
+
+  it "carries the rate limit reset" do
+    expect(DPay::RateLimitError.new("Too many requests", 429, 12, 60, 0, "{}", 1_790_503_560).reset)
+      .to eq(1_790_503_560)
+  end
+
   it "allows rate limit context to be omitted" do
     error = DPay::RateLimitError.new("Too many requests", 429)
 
     expect(error.retry_after).to be_nil
     expect(error.limit).to be_nil
     expect(error.remaining).to be_nil
+    expect(error.reset).to be_nil
     expect(error.raw_body).to eq("")
   end
 

@@ -119,6 +119,8 @@ RSpec.describe "DPay recurring payment requests" do
 
     expect { blik.with_channel("86").to_body("s") }
       .to raise_error(DPay::InvalidArgumentError, "channel cannot be combined with a recurring payment")
+    expect(request(0).with_blik_code("777123", "UA", "10.0.0.1").with_recurring_registration(registration)
+                     .with_channel("").to_body("s")["channel"]).to eq("")
     expect { request(4999).with_recurring_alias("SUB-0001").with_card_recurring_alias("c-1").to_body("s") }
       .to raise_error(DPay::InvalidArgumentError, "card_recurring_alias cannot be combined with a recurring payment")
     expect { request(4999).with_recurring_alias("SUB-0001").with_blik_alias("a-1", "UA", "10.0.0.1") }

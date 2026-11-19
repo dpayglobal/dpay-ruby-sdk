@@ -5,6 +5,8 @@ RSpec.describe DPay::Currency do
     expect(described_class::PLN).to eq("PLN")
     expect(described_class::EUR).to eq("EUR")
     expect(described_class::CZK).to eq("CZK")
+    expect(described_class::USD).to eq("USD")
+    expect(described_class::RON).to eq("RON")
   end
 
   it "accepts any ISO-shaped uppercase code" do

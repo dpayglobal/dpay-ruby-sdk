@@ -1,0 +1,14 @@
+module DPay
+  module RetryRefusal
+    PAYMENT_NOT_DECLINED: String
+    DECLINE_NOT_RETRYABLE: String
+    RETRY_LIMIT_REACHED: String
+    RETRY_WINDOW_EXPIRED: String
+    ALIAS_NOT_AVAILABLE: String
+    RECURRING_NOT_ENABLED: String
+    PAYMENT_NOT_FOUND: String
+    SERVICE_UNAVAILABLE: String
+
+    ALL: Array[String]
+  end
+end

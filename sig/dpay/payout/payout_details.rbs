@@ -5,7 +5,9 @@ module DPay
     attr_reader net: Money
     attr_reader fee: Money
     attr_reader gross: Money
+    attr_reader currency: String
     attr_reader creation_date: String?
+    attr_reader export_date: String?
     attr_reader nrb: String?
     attr_reader decline_reason: String?
     attr_reader decline_status: String?
@@ -20,5 +22,6 @@ module DPay
     def failed?: () -> bool
     def direct_settlement?: () -> bool
     def declined?: () -> bool
+    def paysafecard?: () -> bool
   end
 end

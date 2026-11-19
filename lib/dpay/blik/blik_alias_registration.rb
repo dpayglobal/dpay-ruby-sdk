@@ -3,8 +3,8 @@
 module DPay
   class BlikAliasRegistration
     def initialize(label, type = BlikAliasType::UID)
-      unless label.is_a?(String) && !label.empty? && label.length <= 50
-        raise InvalidArgumentError, "Alias label must be 1-50 characters"
+      unless label.is_a?(String) && !label.empty? && label.length <= 35
+        raise InvalidArgumentError, "Alias label must be 1-35 characters"
       end
 
       BlikAliasType.assert_valid(type)

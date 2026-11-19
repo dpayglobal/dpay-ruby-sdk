@@ -12,8 +12,9 @@ module DPay
         PHP.strval(value)
       end
 
+      # Decimal API amount in the given (valid) currency; 0 in that currency when missing or unparseable.
       def money(value, currency = Currency::PLN)
-        Money.try_from_api_number(value.nil? ? 0 : value, currency) || Money.pln(0)
+        Money.try_from_api_number(value.nil? ? 0 : value, currency) || Money.of(0, currency)
       end
 
       def boolean(value)

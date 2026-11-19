@@ -4,15 +4,16 @@ module DPay
   class PayoutReceiver
     attr_reader :nrb, :title, :amount, :service, :receiver_name, :receiver_address, :raw
 
-    def self.from_api(data)
-      new(data)
+    # currency: currency of the payout (PayoutDetails#currency).
+    def self.from_api(data, currency = Currency::PLN)
+      new(data, currency)
     end
 
-    def initialize(data)
+    def initialize(data, currency = Currency::PLN)
       @raw = data
       @nrb = data["nrb"].is_a?(String) ? data["nrb"] : nil
       @title = data["title"].is_a?(String) ? data["title"] : nil
-      @amount = Money.try_from_api_number(data["amount"], Currency::PLN)
+      @amount = Money.try_from_api_number(data["amount"], Currency.valid?(currency) ? currency : Currency::PLN)
       @service = data["service"].is_a?(String) ? data["service"] : nil
       @receiver_name = data["receiverName"].is_a?(String) ? data["receiverName"] : nil
       @receiver_address = data["receiverAddress"].is_a?(String) ? data["receiverAddress"] : nil

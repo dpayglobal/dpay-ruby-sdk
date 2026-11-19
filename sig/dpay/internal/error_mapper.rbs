@@ -5,6 +5,7 @@ module DPay
 
       def self?.map: (HTTP::Response response) -> ApiError
       def self?.extract_code: (Hash[String, untyped] data) -> String?
+      def self?.extract_transaction_id: (Hash[String, untyped] data) -> String?
       def self?.error_class: (Integer status) -> singleton(ApiError)
       def self?.extract_message: (Hash[String, untyped] data) -> String
       def self?.rate_limit: (HTTP::Response response, String message) -> RateLimitError

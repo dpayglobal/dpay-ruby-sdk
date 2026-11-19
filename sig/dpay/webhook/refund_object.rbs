@@ -1,0 +1,20 @@
+module DPay
+  class RefundObject
+    STATUS_SUCCEEDED: String
+    STATUS_FAILED: String
+
+    attr_reader id: String?
+    attr_reader payment: String?
+    attr_reader status: String?
+    attr_reader currency: String
+    attr_reader amount: Money
+    attr_reader created: String?
+    attr_reader succeeded_at: String?
+    attr_reader failure: Failure?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> RefundObject
+
+    def initialize: (Hash[String, untyped] data) -> void
+  end
+end

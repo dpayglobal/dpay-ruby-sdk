@@ -4,6 +4,8 @@ module DPay
   module Internal
     class ApiRequestor
       USER_AGENT = "dpay-ruby-sdk/#{VERSION} ruby/#{RUBY_VERSION}".freeze
+      HEADER_NAME = /\A[A-Za-z0-9-]+\z/
+      HEADER_VALUE_FORBIDDEN = /[\x00-\x1F\x7F]/
 
       attr_reader :config, :checksum
 
@@ -17,8 +19,9 @@ module DPay
         @config.service
       end
 
-      def post_json(host, path, body)
-        decode(send_request("POST", host, path, body))
+      # headers: extra request headers (e.g. DigitalPayments-PSP-Message-ID).
+      def post_json(host, path, body, headers = {})
+        decode(send_request("POST", host, path, body, headers))
       end
 
       def get_json(host, path)
@@ -29,15 +32,26 @@ module DPay
         send_request("GET", host, path, nil).body
       end
 
-      def send_request(method, host, path, body)
-        response = send_raw(method, host, path, body)
+      def send_request(method, host, path, body, headers = {})
+        response = send_raw(method, host, path, body, headers)
         raise map_error(response) if response.status >= 400
 
         response
       end
 
-      def send_raw(method, host, path, body)
+      # extra_headers are sent after the SDK headers; names must match ^[A-Za-z0-9-]+$ and values must not contain
+      # control characters (no header injection) - otherwise InvalidArgumentError and nothing is sent.
+      def send_raw(method, host, path, body, extra_headers = {})
+        # @type var headers: Hash[String, String]
         headers = { "Accept" => "application/json", "User-Agent" => USER_AGENT }
+        extra_headers.each do |name, value|
+          unless name.is_a?(String) && HEADER_NAME.match?(name) &&
+                 value.is_a?(String) && !HEADER_VALUE_FORBIDDEN.match?(value)
+            raise InvalidArgumentError, %(Invalid request header "#{name}")
+          end
+
+          headers[name] = value
+        end
         encoded = nil
 
         unless body.nil?

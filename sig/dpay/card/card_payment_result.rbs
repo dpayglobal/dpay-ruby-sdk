@@ -14,6 +14,7 @@ module DPay
     def dcc_offer?: () -> bool
     def three_ds_form_html: () -> String?
     def redirect_url: () -> String?
+    def apple_pay_merchant_session: () -> Hash[String, untyped]?
 
     private
 

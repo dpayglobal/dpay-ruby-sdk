@@ -87,6 +87,7 @@ RSpec.describe DPay::RecurringService do
         "checksum" => "00bceec5fca2ee4c3a1737156df376441d225790eb61ca47fcbe9cba7243a77d" }
     )
     expect(result).to be_pending
+    expect(result).not_to be_success
     expect(result.count).to eq(1)
     expect(result.transaction_id).to eq(transaction_id)
   end
@@ -113,8 +114,23 @@ RSpec.describe DPay::RecurringService do
                                               "decline_reason" => "SEC_DECLINED" } })
 
     expect { service.retry(transaction_id) }.to raise_error(DPay::InvalidRequestError) { |error|
-      expect(error.field_errors["retry"]).to eq(["DECLINE_NOT_RETRYABLE"])
+      expect(error.field_errors["retry"]).to eq([DPay::RetryRefusal::DECLINE_NOT_RETRYABLE])
+      expect(error.field_errors["decline_reason"]).to eq(["SEC_DECLINED"])
       expect(error.http_status).to eq(400)
     }
+  end
+
+  it "returns a retry that succeeded at once" do
+    transport.queue_json(200, { "status" => "success",
+                                "data" => { "transactionId" => transaction_id,
+                                            "retry" => { "status" => "success", "count" => 1 } } })
+
+    result = service.retry(transaction_id)
+
+    expect(result).to be_success
+    expect(result).not_to be_pending
+    expect(result).not_to be_failed
+    expect(DPay::RetryRefusal::ALL.size).to eq(8)
+    expect(DPay::RetryRefusal::SERVICE_UNAVAILABLE).to eq("Service unavailable")
   end
 end

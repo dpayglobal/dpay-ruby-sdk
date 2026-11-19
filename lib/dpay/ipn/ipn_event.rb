@@ -15,12 +15,15 @@ module DPay
       freeze
     end
 
+    # Payment ID - for alias_update the payment that registered the alias.
     def id
       scalar("id") || ""
     end
 
+    # Paid amount as sent (e.g. "10.00"); empty for alias_update - its signature does not cover an amount, so a value
+    # in the payload is ignored.
     def amount
-      scalar("amount") || ""
+      alias_update? ? "" : scalar("amount") || ""
     end
 
     def type
@@ -31,12 +34,14 @@ module DPay
       scalar("signature") || ""
     end
 
+    # Payer's email; nil for alias_update (not signed there).
     def email
-      scalar("email")
+      alias_update? ? nil : scalar("email")
     end
 
+    # The custom value of the registration; nil for alias_update (not signed there).
     def custom
-      scalar("custom")
+      alias_update? ? nil : scalar("custom")
     end
 
     # @deprecated dpay no longer sends capture IPNs - use the "payment.captured" webhook event.
@@ -44,8 +49,9 @@ module DPay
       scalar("capture_payment_id")
     end
 
+    # Delivery attempt; 0 for alias_update (not signed there).
     def attempt
-      integer("attempt")
+      alias_update? ? 0 : integer("attempt")
     end
 
     def version
@@ -63,6 +69,16 @@ module DPay
 
     def dcb?
       type == IpnType::DCB
+    end
+
+    # BLIK OneClick alias or recurring payment status change - details in #alias_update.
+    def alias_update?
+      type == IpnType::ALIAS_UPDATE
+    end
+
+    # Alias change of an alias_update IPN (DPay::AliasUpdate); nil for other types.
+    def alias_update
+      alias_update? ? AliasUpdate.from_api(@raw) : nil
     end
 
     private

@@ -5,8 +5,12 @@ require "json"
 require "openssl"
 
 module DPay
+  # Verifies IPN notifications (JSON POST, acknowledged with the body "OK"):
+  #  - transfer, dcb: sha256(id + SecretHash + amount + email + type + attempt + version + custom), dcb without email;
+  #  - alias_update: sha256(id + SecretHash + type + version).
   module IpnVerifier
     REQUIRED_FIELDS = %w[id amount type attempt version signature].freeze
+    ALIAS_UPDATE_REQUIRED_FIELDS = %w[id type version signature].freeze
     INVALID_PAYLOAD = "Invalid IPN payload"
 
     module_function
@@ -30,28 +34,51 @@ module DPay
       end
 
       raise SignatureVerificationError, INVALID_PAYLOAD unless payload.is_a?(Hash)
-      raise SignatureVerificationError, INVALID_PAYLOAD unless REQUIRED_FIELDS.all? { |f| !payload[f].nil? }
+
+      required = scalar(payload["type"]) == IpnType::ALIAS_UPDATE ? ALIAS_UPDATE_REQUIRED_FIELDS : REQUIRED_FIELDS
+      raise SignatureVerificationError, INVALID_PAYLOAD unless required.all? { |f| !payload[f].nil? }
 
       payload
     end
 
     def expected_signature(payload, secret_hash)
-      type = Internal::PHP.strval(payload["type"])
+      type = scalar(payload["type"])
+      id = scalar(payload["id"])
+      version = numeric(payload["version"])
 
-      parts = [Internal::PHP.strval(payload["id"]), secret_hash, Internal::PHP.strval(payload["amount"])]
-      parts << Internal::PHP.strval(payload["email"]) unless type == IpnType::DCB
-      parts << type
-      parts << Internal::PHP.strval(payload["attempt"])
-      parts << Internal::PHP.strval(payload["version"])
-      parts << Internal::PHP.strval(payload["custom"])
+      parts = if type == IpnType::ALIAS_UPDATE
+                [id, secret_hash, type, version]
+              else
+                transfer_parts(payload, id, secret_hash, type, version)
+              end
 
       Digest::SHA256.hexdigest(parts.join)
+    end
+
+    def transfer_parts(payload, id, secret_hash, type, version)
+      parts = [id, secret_hash, scalar(payload["amount"])]
+      parts << scalar(payload["email"]) unless type == IpnType::DCB
+      parts << type
+      parts << numeric(payload["attempt"])
+      parts << version
+      parts << scalar(payload["custom"])
+      parts
+    end
+
+    # PHP: is_scalar($value) ? (string) $value : ''
+    def scalar(value)
+      Internal::PHP.scalar?(value) ? Internal::PHP.strval(value) : ""
+    end
+
+    # PHP: is_numeric($value) ? (string) $value : '0'
+    def numeric(value)
+      Internal::PHP.numeric?(value) ? Internal::PHP.strval(value) : "0"
     end
 
     def secure_compare(expected, actual)
       expected.bytesize == actual.bytesize && OpenSSL.fixed_length_secure_compare(expected, actual)
     end
 
-    private_class_method :parse, :expected_signature, :secure_compare
+    private_class_method :parse, :expected_signature, :transfer_parts, :scalar, :numeric, :secure_compare
   end
 end
