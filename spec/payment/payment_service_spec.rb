@@ -124,4 +124,25 @@ RSpec.describe DPay::PaymentService do
     expect(body["checksum"]).to eq("9508d77a17bdd44829ecc450214a3e356ca0cbe2f93c28012e3a5f6b39b4aa30")
     expect(transaction).to be_paid
   end
+
+  context "with strings the panel API trims" do
+    let(:config) { DPay::Config.new(service: "MyShop", secret_hash: "secret123", http_client: transport) }
+
+    it "sends and signs the trimmed transaction id" do
+      transport.queue_json(200, { "transaction" => { "id" => "30D9493D-1D73-3FBD-A5D4-633723CC7A68" } })
+
+      service.details("\t30D9493D-1D73-3FBD-A5D4-633723CC7A68 ")
+
+      expect(transport.last_request_body).to eq(
+        { "service" => "MyShop", "transaction_id" => "30D9493D-1D73-3FBD-A5D4-633723CC7A68",
+          "checksum" => "3b345f55900ae6a43220dd14a3827ed9a26a02a3eb46b856d302e2baa44b48a4" }
+      )
+    end
+
+    it "rejects a blank transaction id before sending" do
+      expect { service.details("\u200B") }
+        .to raise_error(DPay::InvalidArgumentError, "transaction_id must not be empty")
+      expect(transport.requests).to be_empty
+    end
+  end
 end

@@ -241,6 +241,76 @@ RSpec.describe DPay::PayoutService do
       expect(transport.requests).to be_empty
     end
 
+    it "sends and signs date filters trimmed like the API trims them" do
+      transport.queue_json(200, { "withdraws" => [], "meta" => {} })
+
+      service.list({ "date_from" => "\uFEFF2026-08-01 ", "date_to" => "\u30002026-08-31 23:59:59\u200B" })
+
+      expect(transport.last_request_body).to eq(
+        { "service" => "MyShop", "date_from" => "2026-08-01", "date_to" => "2026-08-31 23:59:59",
+          "checksum" => "59828763de9628f5794f01750e9876aba13876caac856f62daf7840552f28d6f" }
+      )
+    end
+
+    it "raises InvalidArgumentError for filters of the wrong type, in the API order" do
+      {
+        { "date_from" => 20_260_801 } => "date_from must be a string",
+        { date_to: Time.utc(2026, 8, 31) } => "date_to must be a string",
+        { "date_from" => " \n" } => "date_from must not be empty",
+        { "state" => "1" } => "state must be an integer",
+        { state: true } => "state must be an integer",
+        { state: 1.0 } => "state must be an integer",
+        { state: 2 } => 'Invalid payout state "2"',
+        { "type" => 1 } => "type must be a string",
+        { type: :standard } => "type must be a string",
+        { type: "instant" } => 'Invalid payout type "instant"',
+        { "status" => 1, "date_from" => 1 } => 'Unknown payout filter "status"',
+        { "date_from" => " ", "state" => "x" } => "date_from must not be empty",
+        { "date_to" => 1, "state" => "x" } => "date_to must be a string",
+        { "state" => 5, "type" => 1 } => 'Invalid payout state "5"'
+      }.each do |filters, message|
+        expect { service.list(filters) }.to raise_error(DPay::InvalidArgumentError, message), filters.inspect
+      end
+      expect { service.list(nil) }.to raise_error(DPay::InvalidArgumentError, "filters must be a Hash")
+      expect { service.list({ "type" => 1 }, 0) }.to raise_error(DPay::InvalidArgumentError, "type must be a string")
+      expect(transport.requests).to be_empty
+    end
+
+    it "treats nil filters as not set" do
+      transport.queue_json(200, { "withdraws" => [], "meta" => {} })
+
+      service.list({ date_from: nil, date_to: nil, state: nil, type: nil })
+
+      expect(transport.last_request_body.keys).to eq(%w[service checksum])
+    end
+
+    context "with a blank configured service" do
+      let(:config) { DPay::Config.new(service: "\u3000", secret_hash: "secret123", http_client: transport) }
+
+      it "rejects every payout request, before the filters" do
+        [-> { service.list({ "status" => 1 }) }, -> { service.details(1) }, -> { service.details_full(1) }]
+          .each do |call|
+            expect { call.call }.to raise_error(DPay::InvalidArgumentError, "service must not be empty")
+          end
+        expect(transport.requests).to be_empty
+      end
+    end
+
+    it "reads the payout flags only from the JSON integer 1" do
+      keys = %w[paysafecard direct_settlement declined]
+      read = lambda do |value|
+        details = DPay::PayoutDetails.from_api(keys.to_h { |key| [key, value] }.merge("id" => 1))
+        item = DPay::PayoutListItem.from_api({ "id" => 1, "declined" => value })
+        [details.paysafecard?, details.direct_settlement?, details.declined?, item.declined?]
+      end
+
+      expect(read.call(1)).to eq([true, true, true, true])
+      [0, "1", "1abc", true, 1.0, 2, nil].each do |value|
+        expect(read.call(value)).to eq([false, false, false, false]), value.inspect
+      end
+      expect(DPay::PayoutListItem.from_api({ "id" => 1 })).not_to be_declined
+    end
+
     it "rejects unknown filters" do
       expect { service.list({ "status" => 1 }) }
         .to raise_error(DPay::InvalidArgumentError, 'Unknown payout filter "status"')

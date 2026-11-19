@@ -1,0 +1,14 @@
+module DPay
+  module Internal
+    module ServerTrim
+      CODE_POINTS: Array[Integer]
+      LOOKUP: Hash[Integer, true]
+      UTF8_BYTES: Array[Encoding]
+
+      def self?.trim: (String value) -> String
+      def self?.trim_strings: (untyped value) -> untyped
+      def self?.required: (untyped value, String field) -> String
+      def self?.utf8_code_points: (String value) -> Array[Integer]?
+    end
+  end
+end

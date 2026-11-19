@@ -23,7 +23,8 @@ module DPay
       @gross = Internal::Coerce.money(data["gross"], @currency)
       @creation_date = data["creation_date"].is_a?(String) ? data["creation_date"] : nil
       @export_date = data["export_date"].is_a?(String) ? data["export_date"] : nil
-      @declined = integer(data["declined"]) == 1
+      # declined is the JSON integer 1 (the API casts it with (int))
+      @declined = data["declined"].is_a?(Integer) && data["declined"] == 1
       freeze
     end
 

@@ -15,7 +15,9 @@ module DPay
 
     # Orders a refund (partial with an amount, the rest of the payment without). A successful response means the
     # refund was accepted - its outcome comes as a "refund.succeeded" / "refund.failed" event. The optional webhook
-    # target receives the events of this refund and is part of the checksum.
+    # target receives the events of this refund and is part of the checksum. The transaction ID, reason and webhook
+    # URL are sent and signed trimmed, as the API trims them before it verifies the checksum (Internal::ServerTrim);
+    # a reason that is blank after trimming is sent as "".
     #
     # message_id: your own refund identifier, sent in the DigitalPayments-PSP-Message-ID header (not part of the
     # checksum): the refund transfer title becomes "dpay.pl zwrot <message_id>" and Refund#message returns it.
@@ -36,10 +38,12 @@ module DPay
       Refund.from_api(@api.post_json(Internal::BaseUrls::PANEL, "/api/v1/pbl/refund", body, headers))
     end
 
-    # Checks whether the refund is possible. Every answer that carries the "refund" key - HTTP 200 and the business
-    # refusals 400, 402, 404 (transaction does not exist), 406, 409, 410, 411, 423 and a business 401 - is returned
-    # as RefundAvailability (http_status tells the reason apart). An invalid checksum (401 "Unauthorized request"),
-    # validation errors (422), rate limits and server errors raise.
+    # Checks whether the refund is possible. The answer is decided by the body, not by a list of statuses: HTTP 200
+    # and every 4xx whose JSON body carries the "refund" key are returned as RefundAvailability (http_status tells the
+    # reason apart) - today the business refusals 400, 402, 404 (transaction does not exist), 406, 409, 410, 411, 423
+    # and a business 401. Raised: 401 "Unauthorized request" (invalid checksum), every response without the "refund"
+    # key - which is how the API answers validation errors (422) and rate limits (429) - and every 5xx, even with the
+    # "refund" key.
     def check_availability(transaction_id, amount = nil, reason = nil)
       body = signed_body(transaction_id, amount, reason)
       response = @api.send_raw("POST", Internal::BaseUrls::PANEL, "/api/v1/pbl/check-refund-availability", body)
@@ -62,13 +66,16 @@ module DPay
 
     def signed_body(transaction_id, amount, reason, webhook = nil)
       # @type var body: Hash[String, untyped]
-      body = { "service" => @api.service, "transaction_id" => transaction_id }
+      body = {
+        "service" => @api.panel_service,
+        "transaction_id" => Internal::ServerTrim.required(transaction_id, "transaction_id")
+      }
       body["value"] = amount.to_decimal unless amount.nil?
+      # Blank after trimming is sent as "" - the API turns it into null and hashes an empty segment
       body["reason"] = reason unless reason.nil?
       body["webhook"] = webhook.to_h unless webhook.nil?
-      body["checksum"] = @api.checksum.ordered_body(body)
 
-      body
+      @api.sign_panel_body(body)
     end
   end
 end

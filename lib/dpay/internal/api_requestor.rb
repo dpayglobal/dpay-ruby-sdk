@@ -19,6 +19,21 @@ module DPay
         @config.service
       end
 
+      # Your service name for a panel (/api/v1/pbl/*) request body, trimmed like the API trims it (ServerTrim).
+      def panel_service
+        ServerTrim.required(@config.service, "service")
+      end
+
+      # A panel (/api/v1/pbl/*) body ready to send: every string trimmed the way the API trims it before it verifies
+      # the checksum (ServerTrim), then signed with the ordered-body checksum over the values as sent.
+      def sign_panel_body(body)
+        # @type var trimmed: Hash[String, untyped]
+        trimmed = ServerTrim.trim_strings(body)
+        trimmed["checksum"] = @checksum.ordered_body(trimmed)
+
+        trimmed
+      end
+
       # headers: extra request headers (e.g. DigitalPayments-PSP-Message-ID).
       def post_json(host, path, body, headers = {})
         decode(send_request("POST", host, path, body, headers))

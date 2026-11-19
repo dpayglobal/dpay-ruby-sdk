@@ -16,7 +16,7 @@ module DPay
 
     private
 
-    def trimmed_date: (untyped value, String field) -> String
+    def filter_body: (untyped filters) -> Hash[String, untyped]
     def add_page: (Hash[String, untyped] body, untyped page, untyped per_page, Integer max_per_page) -> void
   end
 end

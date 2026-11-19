@@ -23,5 +23,9 @@ module DPay
     def direct_settlement?: () -> bool
     def declined?: () -> bool
     def paysafecard?: () -> bool
+
+    private
+
+    def json_one?: (untyped value) -> bool
   end
 end

@@ -87,6 +87,89 @@ RSpec.describe DPay::RefundService do
     expect { service.check_availability("TX-1") }.to raise_error(DPay::AuthenticationError)
   end
 
+  it "decides availability by the refund key: 422 and 429 without it raise, 422 with it is an answer" do
+    transport.queue_json(422, { "message" => "The transaction id field is required.",
+                                "errors" => { "transaction_id" => ["The transaction id field is required."] } })
+    expect { service.check_availability("TX-1") }
+      .to raise_error(DPay::InvalidRequestError) { |error| expect(error.http_status).to eq(422) }
+
+    transport.queue_json(429, { "status" => "error", "message" => "Too Many Requests", "error" => "Too Many Requests" },
+                         { "Retry-After" => "12" })
+    expect { service.check_availability("TX-1") }
+      .to raise_error(DPay::RateLimitError) { |error| expect(error.retry_after).to eq(12) }
+
+    transport.queue_json(422, { "status" => "error", "refund" => false, "message" => "Refund not possible" })
+    availability = service.check_availability("TX-1")
+    expect(availability).not_to be_available
+    expect(availability.http_status).to eq(422)
+  end
+
+  context "with strings the panel API trims" do
+    let(:service_name) { "MyShop" }
+    let(:config) { DPay::Config.new(service: service_name, secret_hash: "secret123", http_client: transport) }
+    let(:transaction_id) { "30D9493D-1D73-3FBD-A5D4-633723CC7A68" }
+
+    context "with surrounding whitespace in the configured service" do
+      let(:service_name) { " MyShop " }
+
+      it "sends and signs the trimmed service, transaction id and reason" do
+        transport.queue_json(200, { "status" => "success", "refund" => true })
+
+        service.create(" #{transaction_id}\n", DPay::Money.pln(1500), "\u3000reklamacja\u200B")
+
+        expect(transport.last_request_body).to eq(
+          { "service" => "MyShop", "transaction_id" => transaction_id, "value" => "15.00", "reason" => "reklamacja",
+            "checksum" => "5c00684addf39fda89d3d6cff88abf26bb8173119056fd3012050422943c798a" }
+        )
+      end
+    end
+
+    it "sends a reason that is blank after trimming as an empty string" do
+      transport.queue_json(200, { "refund" => true })
+
+      service.check_availability(transaction_id, DPay::Money.pln(1500), "\uFEFF \n")
+
+      body = transport.last_request_body
+      expect(body.keys).to eq(%w[service transaction_id value reason checksum])
+      expect(body["reason"]).to eq("")
+      expect(body["checksum"]).to eq("12dcb016aa2302bbe8ea71be9007eeacdedaeab1d4dc317966bab1b1e8d53a1c")
+    end
+
+    it "sends a trimmed webhook URL" do
+      transport.queue_json(200, { "status" => "success", "refund" => true })
+
+      service.create(transaction_id, nil, nil,
+                     DPay::WebhookTarget.create("https://shop.example/webhooks/refunds\u200B", ["refund.succeeded"]))
+
+      expect(transport.last_request_body["webhook"]["url"]).to eq("https://shop.example/webhooks/refunds")
+      expect(transport.last_request_body["checksum"]).to eq(
+        Digest::SHA256.hexdigest("MyShop|#{transaction_id}|https://shop.example/webhooks/refunds|refund.succeeded|" \
+                                 "secret123")
+      )
+    end
+
+    it "rejects a transaction id that is blank after trimming before sending" do
+      expect { service.create(" \t") }
+        .to raise_error(DPay::InvalidArgumentError, "transaction_id must not be empty")
+      expect { service.check_availability("") }
+        .to raise_error(DPay::InvalidArgumentError, "transaction_id must not be empty")
+      expect { service.create(" ", nil, nil, nil, "RET\n") }
+        .to raise_error(DPay::InvalidArgumentError, "Refund message ID must be non-empty printable ASCII")
+      expect(transport.requests).to be_empty
+    end
+
+    context "with a blank configured service" do
+      let(:service_name) { "\u3000" }
+
+      it "rejects the request before the transaction id" do
+        expect { service.create(" ") }.to raise_error(DPay::InvalidArgumentError, "service must not be empty")
+        expect { service.check_availability(" ") }
+          .to raise_error(DPay::InvalidArgumentError, "service must not be empty")
+        expect(transport.requests).to be_empty
+      end
+    end
+  end
+
   context "with a refund message id" do
     let(:config) { DPay::Config.new(service: "MyShop", secret_hash: "secret123", http_client: transport) }
 

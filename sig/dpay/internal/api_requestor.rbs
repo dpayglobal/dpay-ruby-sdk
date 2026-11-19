@@ -10,6 +10,8 @@ module DPay
 
       def initialize: (Config config, untyped http_client) -> void
       def service: () -> String
+      def panel_service: () -> String
+      def sign_panel_body: (Hash[String, untyped] body) -> Hash[String, untyped]
       def post_json: (Symbol host, String path, Hash[String, untyped] body, ?Hash[String, String] headers) -> Hash[String, untyped]
       def get_json: (Symbol host, String path) -> Hash[String, untyped]
       def get_text: (Symbol host, String path) -> String

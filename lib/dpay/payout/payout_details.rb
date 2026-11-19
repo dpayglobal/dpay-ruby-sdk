@@ -22,14 +22,13 @@ module DPay
       @gross = Internal::Coerce.money(data["gross"], @currency)
       @creation_date = data["creation_date"].is_a?(String) ? data["creation_date"] : nil
       @export_date = data["export_date"].is_a?(String) ? data["export_date"] : nil
-      @direct_settlement = Internal::Coerce.integer(data["direct_settlement"]) == 1
+      # The API sends its 0/1 flags as JSON integers - only the Integer 1 is true
+      @direct_settlement = json_one?(data["direct_settlement"])
       @nrb = data["nrb"].is_a?(String) ? data["nrb"] : nil
-      @declined = Internal::Coerce.integer(data["declined"]) == 1
+      @declined = json_one?(data["declined"])
       @decline_reason = data["decline_reason"].is_a?(String) ? data["decline_reason"] : nil
       @decline_status = data["decline_status"].is_a?(String) ? data["decline_status"] : nil
-      paysafecard = data["paysafecard"]
-      @paysafecard = paysafecard == true ||
-                     (Internal::PHP.scalar?(paysafecard) && Internal::Coerce.integer(paysafecard) == 1)
+      @paysafecard = json_one?(data["paysafecard"])
       @receiver = data["receiver"].is_a?(Hash) ? PayoutReceiver.from_api(data["receiver"], @currency) : nil
       freeze
     end
@@ -46,7 +45,7 @@ module DPay
       @state == PayoutState::FAILED
     end
 
-    # Paysafecard payout (paysafecard = 1, present only for regular, non-direct settlements).
+    # Paysafecard payout (paysafecard is the JSON integer 1; sent only for regular, non-direct settlements).
     def paysafecard?
       @paysafecard
     end
@@ -57,6 +56,12 @@ module DPay
 
     def declined?
       @declined
+    end
+
+    private
+
+    def json_one?(value)
+      value.is_a?(Integer) && value == 1
     end
   end
 end

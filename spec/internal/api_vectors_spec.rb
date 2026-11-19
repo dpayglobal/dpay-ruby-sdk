@@ -42,6 +42,29 @@ RSpec.describe "Shared API vectors" do
     end
   end
 
+  it "trims the server_trim string vectors like the API" do
+    strings = vectors.dig("server_trim", "strings")
+    expect(strings.size).to eq(8)
+
+    strings.each do |vector|
+      expect(DPay::Internal::ServerTrim.trim(vector["input"])).to eq(vector["trimmed"]), vector["name"]
+    end
+  end
+
+  it "sends and signs the server_trim body vectors trimmed" do
+    bodies = vectors.dig("server_trim", "bodies")
+    expect(bodies.size).to eq(4)
+
+    bodies.each do |vector|
+      trimmed = DPay::Internal::ServerTrim.trim_strings(vector["input"])
+
+      expect(trimmed).to eq(vector["body"]), vector["name"]
+      expect(trimmed.keys).to eq(vector["body"].keys), vector["name"]
+      expect(calculator.ordered_body(trimmed)).to eq(vector["checksum"]), vector["name"]
+      expect(calculator.ordered_body(vector["input"])).not_to eq(vector["checksum"]), vector["name"]
+    end
+  end
+
   it "skips the checksum key and casts values like the API" do
     calculator = DPay::Internal::ChecksumCalculator.new("h")
     body = { "x" => "a", "checksum" => "ignored", "y" => true, "z" => nil, "w" => { "v" => "b" } }
