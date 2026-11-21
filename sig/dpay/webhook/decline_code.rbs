@@ -1,0 +1,28 @@
+module DPay
+  module DeclineCode
+    INSUFFICIENT_FUNDS: String
+    LIMIT_EXCEEDED: String
+    CUSTOMER_DECLINED: String
+    CUSTOMER_TIMEOUT: String
+    INVALID_CODE: String
+    EXPIRED: String
+    APP_UPDATE_REQUIRED: String
+    ISSUER_DECLINED: String
+    CARD_INVALID: String
+    AUTHENTICATION_REQUIRED: String
+    ALIAS_INVALID: String
+    UNSUPPORTED_BY_BANK: String
+    GENERIC_DECLINE: String
+    SECURITY_DECLINED: String
+    BLOCKED: String
+    RECURRING_CONDITIONS_NOT_MET: String
+    INVALID_REQUEST: String
+    REFUND_WINDOW_EXPIRED: String
+    REFUND_AMOUNT_EXCEEDED: String
+    PAYOUT_FAILED: String
+    REFUND_FAILED: String
+    PROCESSING_ERROR: String
+
+    ALL: Array[String]
+  end
+end

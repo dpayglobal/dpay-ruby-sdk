@@ -9,15 +9,19 @@ module DPay
     attr_reader ipksef: String?
     attr_reader raw: Hash[String, untyped]
 
-    def self.from_api: (Hash[String, untyped] data) -> RegisteredPayment
+    @currency: String
 
-    def initialize: (Hash[String, untyped] data) -> void
+    def self.from_api: (Hash[String, untyped] data, ?String currency) -> RegisteredPayment
+
+    def initialize: (Hash[String, untyped] data, ?String currency) -> void
     def redirect_url: () -> String?
     def paid?: () -> bool
     def internal_processing?: () -> bool
     def card_recurring_alias: () -> String?
     def recurring_alias: () -> String?
     def recurring_methods: () -> Array[String]
+    def multibanco: () -> MultibancoReference?
+    def paid_transaction: () -> RegisteredTransaction?
 
     private
 

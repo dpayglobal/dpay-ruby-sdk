@@ -16,6 +16,12 @@ RSpec.describe "DPay BLIK" do
       expect { described_class.new("") }.to raise_error(DPay::InvalidArgumentError)
     end
 
+    it "accepts at most 35 characters" do
+      expect(described_class.new("ż" * 35).to_h).to eq({ "label" => "ż" * 35, "type" => "UID" })
+      expect { described_class.new("a" * 36) }
+        .to raise_error(DPay::InvalidArgumentError, "Alias label must be 1-35 characters")
+    end
+
     it "accepts only UID aliases (recurring payments go through client.recurring)" do
       expect { described_class.new("Moj alias", "PAYID") }
         .to raise_error(DPay::InvalidArgumentError, 'Invalid BLIK alias type "PAYID"')

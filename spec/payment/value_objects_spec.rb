@@ -114,4 +114,27 @@ RSpec.describe "DPay payment input value objects" do
       expect { described_class.create([]) }.to raise_error(DPay::InvalidArgumentError)
     end
   end
+
+  describe DPay::PayoutPosition do
+    it "accepts a valid Polish IBAN with spaces and lower case and sends it unchanged" do
+      position = described_class.new("pl61 1090 1014 0000 0712 1981 2874", "FV 1", DPay::Money.pln(100))
+
+      expect(position.to_h["iban"]).to eq("pl61 1090 1014 0000 0712 1981 2874")
+      expect(described_class.valid_polish_iban?("PL61109010140000071219812874")).to be(true)
+    end
+
+    it "rejects an IBAN that is not a valid Polish IBAN" do
+      ["PL61109010140000071219812875", "DE89370400440532013000", "61109010140000071219812874", "", nil].each do |iban|
+        expect { described_class.new(iban, "FV 1", DPay::Money.pln(100)) }
+          .to raise_error(DPay::InvalidArgumentError, /valid Polish IBAN/)
+      end
+    end
+
+    it "requires an amount above 0" do
+      [DPay::Money.pln(0), DPay::Money.pln(-100)].each do |amount|
+        expect { described_class.new("PL61109010140000071219812874", "FV 1", amount) }
+          .to raise_error(DPay::InvalidArgumentError, "Payout amount must be above 0")
+      end
+    end
+  end
 end

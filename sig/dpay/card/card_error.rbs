@@ -1,0 +1,15 @@
+module DPay
+  class CardError
+    attr_reader code: String?
+    attr_reader decline_code: String?
+    attr_reader decline_message: String?
+
+    def self.from_api: (Hash[String, untyped] data) -> CardError
+
+    def initialize: (String? code, String? decline_code, String? decline_message) -> void
+
+    private
+
+    def self.string: (untyped value) -> String?
+  end
+end

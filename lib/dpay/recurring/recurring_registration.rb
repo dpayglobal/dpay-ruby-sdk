@@ -32,8 +32,8 @@ module DPay
     end
 
     def initialize(label, model, terms_url)
-      unless label.is_a?(String) && !label.empty? && label.length <= 50
-        raise InvalidArgumentError, "Recurring payment label must be 1-50 characters"
+      unless label.is_a?(String) && !label.empty? && label.length <= 35
+        raise InvalidArgumentError, "Recurring payment label must be 1-35 characters"
       end
       raise InvalidArgumentError, %(Invalid recurring model "#{model}") unless MODELS.include?(model)
       unless terms_url.is_a?(String) && terms_url.bytesize <= TERMS_URL_MAX && HTTP_URL.match?(terms_url)

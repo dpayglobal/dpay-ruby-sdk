@@ -1,0 +1,22 @@
+module DPay
+  class PayoutObject
+    STATUS_PENDING: String
+    STATUS_PAID: String
+    STATUS_FAILED: String
+
+    attr_reader id: String
+    attr_reader status: String?
+    attr_reader currency: String
+    attr_reader amount: Money
+    attr_reader fee: Money
+    attr_reader bank_account_last4: String?
+    attr_reader created: String?
+    attr_reader paid_at: String?
+    attr_reader failure: Failure?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> PayoutObject
+
+    def initialize: (Hash[String, untyped] data) -> void
+  end
+end

@@ -26,6 +26,8 @@ module DPay
     attr_reader field_errors: Hash[String, Array[String]]
     attr_reader raw_body: String
     attr_reader reason: String?
+    attr_reader transaction_id: String?
+    attr_reader card_error: CardError?
 
     def initialize: (
       String message,
@@ -33,7 +35,9 @@ module DPay
       ?String? error_code,
       ?Hash[String, Array[String]] field_errors,
       ?String raw_body,
-      ?String? reason
+      ?String? reason,
+      ?String? transaction_id,
+      ?CardError? card_error
     ) -> void
   end
 
@@ -56,6 +60,7 @@ module DPay
     attr_reader retry_after: Integer?
     attr_reader limit: Integer?
     attr_reader remaining: Integer?
+    attr_reader reset: Integer?
 
     def initialize: (
       String message,
@@ -63,12 +68,12 @@ module DPay
       ?Integer? retry_after,
       ?Integer? limit,
       ?Integer? remaining,
-      ?String raw_body
+      ?String raw_body,
+      ?Integer? reset
     ) -> void
   end
 
   class PaymentRejectedError < ApiError
-    attr_reader transaction_id: String?
     attr_reader error_description: String?
 
     def self.from_api: (Hash[String, untyped] data) -> PaymentRejectedError

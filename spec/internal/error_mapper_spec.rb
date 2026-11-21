@@ -42,6 +42,64 @@ RSpec.describe DPay::Internal::ErrorMapper do
     expect(error.retry_after).to eq(30)
     expect(error.limit).to eq(120)
     expect(error.remaining).to eq(0)
+    expect(error.reset).to be_nil
+  end
+
+  it "maps the rate limit reset header" do
+    error = map(429, '{"message":"Too Many Attempts."}',
+                { "retry-after" => "12", "x-ratelimit-limit" => "60", "x-ratelimit-remaining" => "0",
+                  "x-ratelimit-reset" => "1790503560" })
+
+    expect(error).to be_a(DPay::RateLimitError)
+    expect(error.reset).to eq(1_790_503_560)
+    expect(error.retry_after).to eq(12)
+    expect(error.limit).to eq(60)
+    expect(error.remaining).to eq(0)
+  end
+
+  it "carries the transaction id and the card decline of a Payments API error" do
+    body = '{"status":"failed","message":"Card payment declined","errors":{},' \
+           '"transactionId":"A75AEBB4-4B89-4834-AD43-EF442C133769","cardError":{"code":"payment_declined",' \
+           '"declineCode":"51","declineMessage":"Insufficient funds or over credit limit"}}'
+    error = map(400, body)
+
+    expect(error).to be_a(DPay::InvalidRequestError)
+    expect(error.transaction_id).to eq("A75AEBB4-4B89-4834-AD43-EF442C133769")
+    expect(error.card_error.code).to eq("payment_declined")
+    expect(error.card_error.decline_code).to eq("51")
+    expect(error.card_error.decline_message).to eq("Insufficient funds or over credit limit")
+  end
+
+  it "keeps the null fields of a card decline" do
+    body = '{"status":"failed","message":"Declined","cardError":{"code":"payment_declined","declineCode":null,' \
+           '"declineMessage":null}}'
+    card_error = map(400, body).card_error
+
+    expect(card_error.code).to eq("payment_declined")
+    expect(card_error.decline_code).to be_nil
+    expect(card_error.decline_message).to be_nil
+  end
+
+  it "passes the transaction context to every status class except 429" do
+    body = '{"message":"x","transactionId":"TX-1","cardError":{"code":"invalid_card","declineCode":5}}'
+
+    [401, 403, 404, 422, 418, 502].each do |status|
+      error = map(status, body)
+      expect(error.transaction_id).to eq("TX-1"), status.to_s
+      expect(error.card_error.decline_code).to eq("5"), status.to_s
+    end
+    expect(map(429, body).transaction_id).to be_nil
+  end
+
+  it "has no transaction context without the fields or with malformed ones" do
+    error = map(400, '{"status":"failed","message":"Invalid checksum","errors":{}}')
+
+    expect(error.transaction_id).to be_nil
+    expect(error.card_error).to be_nil
+    malformed = map(400, '{"message":"x","transactionId":"","cardError":"declined"}')
+    expect(malformed.transaction_id).to be_nil
+    expect(malformed.card_error).to be_nil
+    expect(map(400, '{"message":"x","transactionId":42}').transaction_id).to be_nil
   end
 
   it "falls back to the msg key and a default message" do

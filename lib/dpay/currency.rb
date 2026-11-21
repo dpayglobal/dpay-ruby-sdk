@@ -5,6 +5,8 @@ module DPay
     PLN = "PLN"
     EUR = "EUR"
     CZK = "CZK"
+    USD = "USD"
+    RON = "RON"
 
     CODE = /\A[A-Z]{3}\z/
 

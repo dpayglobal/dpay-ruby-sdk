@@ -1,0 +1,32 @@
+module DPay
+  class RecurringPaymentObject
+    STATUS_PENDING: String
+    STATUS_ACTIVE: String
+    STATUS_CANCELED: String
+    STATUS_EXPIRED: String
+    STATUS_DECLINED: String
+
+    CANCELED_BY_MERCHANT: String
+    CANCELED_BY_CUSTOMER: String
+    CANCELED_BY_DPAY: String
+
+    attr_reader id: String
+    attr_reader alias: String?
+    attr_reader status: String?
+    attr_reader canceled_by: String?
+    attr_reader payment_method: Hash[String, untyped]?
+    attr_reader payment_method_type: String?
+    attr_reader model: String?
+    attr_reader frequency: String?
+    attr_reader limit_amount: Integer?
+    attr_reader total_limit_amount: Integer?
+    attr_reader starts_on: String?
+    attr_reader expires_on: String?
+    attr_reader created: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> RecurringPaymentObject
+
+    def initialize: (Hash[String, untyped] data) -> void
+  end
+end

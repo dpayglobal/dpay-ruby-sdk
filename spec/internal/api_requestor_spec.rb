@@ -23,6 +23,30 @@ RSpec.describe DPay::Internal::ApiRequestor do
     expect(request.body).to eq('{"service":"MyShop"}')
   end
 
+  it "sends extra headers after the SDK headers" do
+    transport.queue_json(200, { "status" => "success" })
+
+    requestor.post_json(DPay::Internal::BaseUrls::PANEL, "/api/v1/pbl/refund", { "service" => "MyShop" },
+                        { "DigitalPayments-PSP-Message-ID" => "RET-1" })
+
+    headers = transport.last_request.headers
+    expect(headers["DigitalPayments-PSP-Message-ID"]).to eq("RET-1")
+    expect(headers.keys).to eq(%w[Accept User-Agent DigitalPayments-PSP-Message-ID Content-Type])
+  end
+
+  it "rejects header injection before sending anything" do
+    ["a\r\nX-Other: b", "a\u0000", "a\x7F"].each do |value|
+      expect do
+        requestor.post_json(DPay::Internal::BaseUrls::PANEL, "/api/v1/pbl/refund", {}, { "X-Test" => value })
+      end.to raise_error(DPay::InvalidArgumentError, /Invalid request header "X-Test"/)
+    end
+    ["X Test", "X-Test\n", "X:Test", ""].each do |name|
+      expect { requestor.post_json(DPay::Internal::BaseUrls::PANEL, "/x", {}, { name => "v" }) }
+        .to raise_error(DPay::InvalidArgumentError)
+    end
+    expect(transport.requests).to be_empty
+  end
+
   it "omits the content type when there is no body" do
     transport.queue_json(200, [])
 

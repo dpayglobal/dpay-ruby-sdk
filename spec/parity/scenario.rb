@@ -27,6 +27,8 @@ module ParityScenario
     card_calls(dpay, recorder, device)
     recurring_calls(dpay, recorder)
     webhook_calls(dpay, recorder)
+    payout_calls(dpay, recorder)
+    v030_calls(dpay, recorder, device)
 
     recorder.requests
   end
@@ -69,7 +71,8 @@ module ParityScenario
   def register_transfer_payment(dpay, recorder, device)
     recorder.queue_json(200, { "transactionId" => "tx-1", "msg" => "https://secure.dpay.pl/pay/1" })
     dpay.payments.register(
-      DPay::RegisterPaymentRequest.create(DPay::Money.pln(2999), DPay::TransactionType::TRANSFERS, urls)
+      DPay::RegisterPaymentRequest
+        .create(DPay::Money.of(2999, DPay::Currency::EUR), DPay::TransactionType::TRANSFERS, urls)
         .with_description("Zamówienie #1234 / ĄĘŚŻ")
         .with_custom("order-1234")
         .with_payer(DPay::Payer.create.with_email("jan@example.com").with_name("Jan", "Kowalski"))
@@ -257,6 +260,53 @@ module ParityScenario
     dpay.events.list(
       { types: %w[payment.succeeded refund.failed], created_from: "2026-09-01T00:00:00Z", limit: 10 },
       1_784_700_000
+    )
+  end
+
+  def payout_calls(dpay, recorder)
+    empty_page = { "withdraws" => [], "meta" => { "page" => 1, "per_page" => 50, "total" => 0, "total_pages" => 0 } }
+    recorder.queue_json(200, empty_page)
+    dpay.payouts.list(
+      { type: DPay::PayoutType::STANDARD, state: DPay::PayoutState::PROCESSED, date_to: "2026-08-31 23:59:59 ",
+        date_from: " 2026-08-01\n" }, 2, 10
+    )
+
+    recorder.queue_json(200, empty_page)
+    dpay.payouts.list({ "state" => DPay::PayoutState::WAITING }, 1)
+
+    recorder.queue_json(200, { "settlement" => {}, "summary" => {}, "transactions" => [], "meta" => {} })
+    dpay.payouts.details_full(12_345, 2, 500)
+  end
+
+  def v030_calls(dpay, recorder, device)
+    recorder.queue_json(200, { "status" => "success", "refund" => true, "message" => "dpay.pl zwrot RET-2026-0001" })
+    dpay.refunds.create("tx-1", DPay::Money.pln(500), nil, nil, "RET-2026-0001")
+
+    recorder.queue_json(200, SUCCESS)
+    dpay.cards.apple_pay("tx-1", DPay::ApplePayRequest.pay("ap-token", device).with_email("a@b.pl").with_channel_id(91))
+
+    recorder.queue_json(200, { "transactionId" => "tx-5", "msg" => "Internal processing" })
+    dpay.payments.register(
+      DPay::RegisterPaymentRequest.create(DPay::Money.of(1250, DPay::Currency::EUR), DPay::TransactionType::MB_WAY_DIRECT,
+                                          urls)
+        .with_phone_number("+351912345678", DPay::Currency::EUR)
+        .with_channel("373")
+        .with_payer(DPay::Payer.create.with_email("cliente@example.pt").with_name("Joao", "Silva"))
+        .with_accept_tos(false)
+        .with_device_info(device)
+    )
+
+    recorder.queue_json(200, { "transactionId" => "tx-6", "msg" => "https://secure.dpay.pl/pay/6" })
+    dpay.payments.register(
+      DPay::RegisterPaymentRequest
+        .create(DPay::Money.of(100, DPay::Currency::RON), DPay::TransactionType::TRANSFERS, urls)
+        .with_channel("")
+    )
+
+    recorder.queue_json(200, { "transactionId" => "tx-7", "msg" => "https://secure.dpay.pl/pay/7" })
+    dpay.payments.register(
+      DPay::RegisterPaymentRequest.create(DPay::Money.pln(1000), DPay::TransactionType::TRANSFERS, urls)
+        .with_currency_code(DPay::Currency::PLN)
     )
   end
 end

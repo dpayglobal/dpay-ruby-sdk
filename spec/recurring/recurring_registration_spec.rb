@@ -69,8 +69,9 @@ RSpec.describe DPay::RecurringRegistration do
     expect { described_class.create("Abonament", described_class::MODEL_O, "not a url") }
       .to raise_error(DPay::InvalidArgumentError, /terms URL/)
     expect { described_class.create("", described_class::MODEL_O, terms) }.to raise_error(DPay::InvalidArgumentError)
-    expect { described_class.create("x" * 51, described_class::MODEL_O, terms) }
-      .to raise_error(DPay::InvalidArgumentError)
+    expect { described_class.create("x" * 36, described_class::MODEL_O, terms) }
+      .to raise_error(DPay::InvalidArgumentError, "Recurring payment label must be 1-35 characters")
+    expect(described_class.create("ż" * 35, described_class::MODEL_O, terms).to_h["label"]).to eq("ż" * 35)
     expect { described_class.create("Abonament", "B", terms) }
       .to raise_error(DPay::InvalidArgumentError, 'Invalid recurring model "B"')
   end

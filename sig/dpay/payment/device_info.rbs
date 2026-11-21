@@ -1,5 +1,7 @@
 module DPay
   class DeviceInfo
+    attr_reader browser_java_enabled: bool?
+
     def self.create: (
       browser_accept_header: String,
       browser_language: String,

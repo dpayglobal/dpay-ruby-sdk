@@ -15,6 +15,7 @@ module DPay
 
     def initialize: (Hash[String, untyped] data) -> void
     def pending?: () -> bool
+    def success?: () -> bool
     def failed?: () -> bool
 
     private

@@ -13,8 +13,7 @@ module DPay
     end
 
     def for_service(timestamp = nil)
-      body = { "service" => @api.service, "timestamp" => timestamp || Time.now.to_i }
-      body["checksum"] = @api.checksum.ordered_body(body.values)
+      body = @api.sign_panel_body("service" => @api.panel_service, "timestamp" => timestamp || Time.now.to_i)
 
       map_banks(@api.post_json(Internal::BaseUrls::PANEL, PATH, body))
     end

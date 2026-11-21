@@ -48,6 +48,54 @@ redirect_to payment.redirect_url if payment.redirect_url
 `RegisterPaymentRequest` to budowniczy: każda metoda `with_*` zwraca `self`, więc wywołania można łączyć w łańcuch.
 Adres IPN w `ReturnUrls` jest opcjonalny - bez niego IPN nie przychodzi, a wynik płatności dostaniesz webhookiem.
 
+## Waluta
+
+Waluta płatności to waluta kwoty `DPay::Money`. Kwota w innej walucie niż PLN wysyła `currency_code` sama
+(od 0.3.0), np. CZK dla banków czeskich, EUR dla MB WAY, Multibanco i banków słowackich. Serwis musi mieć
+tę walutę włączoną (PLN, EUR, CZK, USD, RON).
+
+```ruby
+DPay::RegisterPaymentRequest.create(
+  DPay::Money.of(49_900, DPay::Currency::CZK), DPay::TransactionType::TRANSFERS, urls
+)
+```
+
+`with_currency_code` i `with_phone_number` przyjmują tylko walutę kwoty - `DPay::Money.pln` z kodem `EUR` rzuca
+`DPay::InvalidArgumentError`.
+
+## MB WAY i kanały bezpośrednie
+
+Kanał bezpośredni (`with_channel`) wymaga emaila, imienia i nazwiska płatnika oraz `with_accept_tos`.
+MB WAY wymaga dodatkowo kanału `373` i pełnego `DPay::DeviceInfo` z `with_browser_java_enabled` - SDK sprawdza to
+przed wysłaniem (API odpowiedziałoby 422). Pusty kanał (`with_channel("")`) oznacza brak kanału.
+
+```ruby
+payment = dpay.payments.register(
+  DPay::RegisterPaymentRequest
+    .create(DPay::Money.of(1250, DPay::Currency::EUR), DPay::TransactionType::MB_WAY_DIRECT, urls)
+    .with_phone_number("+351912345678", DPay::Currency::EUR)
+    .with_channel("373")
+    .with_payer(DPay::Payer.create.with_email("cliente@example.pt").with_name("Joao", "Silva"))
+    .with_accept_tos(true)
+    .with_device_info(
+      DPay::DeviceInfo.create(
+        browser_accept_header: accept, browser_language: "pt-PT", browser_color_depth: 24,
+        browser_screen_height: 1080, browser_screen_width: 1920, browser_tz: 0, browser_user_agent: user_agent,
+        system_family: "Win32", geo_localization: "38.72,-9.14", device_id: device_id, application_name: "Netscape"
+      ).with_browser_java_enabled(false)
+    )
+)
+```
+
+Multibanco (kanał `390`, EUR) zwraca referencję do pokazania płatnikowi:
+
+```ruby
+reference = payment.multibanco # DPay::MultibancoReference: entity, reference, amount, expires_at
+```
+
+Odpowiedź "Transaction paid" (płatność już opłacona) niesie transakcję w `payment.paid_transaction`
+(`DPay::RegisteredTransaction`: `status`, `paid?`, `value`, `payment_date`).
+
 ## Płatności cykliczne
 
 Rejestracja idzie razem z płatnością kodem BLIK klienta (kwota `0` - sama zgoda, więcej - opłata inicjalna).
@@ -85,6 +133,8 @@ Model `A` (stała kwota) wymaga `with_frequency`, `with_limit_amt`, `with_tot_li
 Obciążenie wiąże alias z sumą kontrolną, a anulowanie ma własną sumę - SDK liczy obie.
 Limity API: `status` do 60, `retry` i `cancel` do 30 zapytań na minutę (licznik wspólny z resztą API
 płatności z tego adresu IP) - nie odpytuj statusu w pętli, wynik przychodzi webhookiem.
+Odmowę ponowienia opisuje `e.field_errors["retry"]` (stałe `DPay::RetryRefusal`).
+Zmiany statusu płatności cyklicznej przychodzą też jako IPN `alias_update` (patrz Obsługa IPN).
 
 ## Webhooki
 
@@ -102,10 +152,19 @@ rescue DPay::SignatureVerificationError
   return head :bad_request
 end
 
-payment = event.object if event.type == DPay::WebhookEventType::PAYMENT_SUCCEEDED # Hash, kwoty w groszach
+payment = event.payment # DPay::PaymentObject, nil dla innych obiektów
+if payment&.status == DPay::PaymentObject::STATUS_SUCCEEDED
+  mark_order_as_paid(payment.merchant_reference, payment.amount) # DPay::Money, grosze + waluta
+end
+failure = payment&.failure
+if failure&.retryable?
+  # np. DPay::DeclineCode::INSUFFICIENT_FUNDS - klient może zapłacić ponownie
+end
 
 head :ok
 ```
+
+Obiekty: `event.payment`, `event.refund`, `event.recurring_payment`, `event.payout`; surowy `Hash` - `event.object`.
 
 Nagłówki podajesz jako `Hash` (albo obiekt z `#each` zwracającym nazwę i wartość) z kluczami `String` lub `Symbol`
 w dowolnej wielkości liter (`"webhook-id"`, `"Webhook-Id"`, `:webhook_id`) albo w formacie Rack (`"HTTP_WEBHOOK_ID"`),
@@ -122,7 +181,7 @@ Własny adres zdarzeń jednej płatności: `.with_webhook(DPay::WebhookTarget.cr
 
 ## Obsługa IPN
 
-IPN przychodzi tylko wtedy, gdy podasz adres IPN w `ReturnUrls`.
+IPN przychodzi tylko wtedy, gdy podasz adres IPN w `ReturnUrls` (IPN `alias_update` także na `with_alias_ipn_url`).
 
 Brama traktuje jako potwierdzenie dokładnie treść odpowiedzi, nie kod HTTP. Musi to być dokładnie napis
 `"OK"` (dostępny jako stała `DPay::IpnEvent::ACK`) - jakikolwiek inna treść w body oznacza dla dpay.pl,
@@ -135,7 +194,11 @@ rescue DPay::SignatureVerificationError
   return render plain: "Invalid signature", status: :bad_request
 end
 
-mark_order_as_paid(event.id, event.amount) if event.transfer?
+if event.transfer?
+  mark_order_as_paid(event.id, event.amount)
+elsif event.alias_update?
+  change = event.alias_update # DPay::AliasUpdate: change_type, alias_type, alias_status, ...
+end
 
 render plain: DPay::IpnEvent::ACK
 ```
@@ -143,6 +206,12 @@ render plain: DPay::IpnEvent::ACK
 `event.amount` to surowy string dziesiętny, a nie `DPay::Money` - payload IPN nie niesie informacji
 o walucie. Zawsze porównaj tę wartość z kwotą własnego zamówienia przed oznaczeniem go jako opłacone,
 zamiast ufać wyłącznie faktowi otrzymania powiadomienia.
+
+IPN `alias_update` (zmiana aliasu BLIK OneClick lub płatności cyklicznej) przychodzi na `with_alias_ipn_url`,
+a bez niego na adres IPN. Ma inny podpis (`sha256(id + hash + type + version)`) - `construct_event` rozpoznaje
+go po `type`, więc zawsze sprawdzaj typ (`event.transfer?`) przed oznaczeniem zamówienia jako opłaconego: `event.id`
+to wtedy płatność, która zarejestrowała alias, a `event.amount` jest puste. Podpis nie obejmuje pól aliasu
+(`event.alias_update`) - przed reakcją na zmianę potwierdź stan przez `dpay.recurring.status` lub `dpay.blik.alias`.
 
 ## Zwroty
 
@@ -158,9 +227,21 @@ dpay.refunds.create(
   DPay::WebhookTarget.create("https://twojsklep.pl/webhooks/zwroty", %w[refund.succeeded refund.failed])
 )
 
+# Własny identyfikator zwrotu (nagłówek DigitalPayments-PSP-Message-ID) - tytuł przelewu "dpay.pl zwrot RET-1234"
+dpay.refunds.create("identyfikator-transakcji", DPay::Money.pln(500), nil, nil, "RET-1234")
+
 availability = dpay.refunds.check_availability("identyfikator-transakcji")
 availability.available?
 ```
+
+`check_availability` rozstrzyga po treści odpowiedzi, nie po liście kodów: HTTP 200 i każda odpowiedź 4xx
+z kluczem `refund` to wynik (nie wyjątek) - dziś odmowy biznesowe 400, 402, 404 (transakcja nie istnieje), 406,
+409, 410, 411, 423 i biznesowe 401; przyczynę rozróżnia `availability.http_status`. Wyjątek rzucają: błędna suma
+kontrolna (401 "Unauthorized request"), każda odpowiedź bez klucza `refund` - tak API odpowiada na błędy walidacji
+(422) i limit zapytań (429) - oraz każde 5xx, także z kluczem `refund`.
+
+Identyfikator transakcji, powód i adres webhooka są wysyłane i podpisywane bez białych i niewidocznych znaków
+na brzegach - API panelu przycina je przed sprawdzeniem sumy kontrolnej (patrz [Białe znaki](#białe-znaki-w-api-panelu)).
 
 ## Szczegóły transakcji i banki
 
@@ -170,8 +251,37 @@ transaction.paid?
 transaction.available_refund_amount.to_decimal
 transaction.refunds
 
+transaction.rate # prowizja, np. "1.49"
+transaction.urls # DPay::TransactionUrls: success, fail, ipn
+
 banks = dpay.banks.for_service
 ```
+
+## Wypłaty
+
+```ruby
+dpay.payouts.iterate({ date_from: "2026-08-01", state: DPay::PayoutState::PROCESSED }) do |payout|
+  settlement = dpay.payouts.details_full(payout.id)
+  settlement.positions.each do |position|
+    position.payment_id # transakcja z IPN, position.custom, position.net, position.fee, position.gross
+  end
+end
+```
+
+`list` zwraca jedną stronę (`per_page` do 200), `details_full` - sumy całego rozliczenia
+(`summary_net`, `summary_count`) i stronę pozycji (`per_page` do 500). Filtry `date_from` i `date_to`
+to łańcuchy (`String`), `state` - liczba całkowita (`Integer`), `type` - łańcuch; wartość innego typu, nieznany
+filtr i pusta data rzucają `DPay::InvalidArgumentError`, a `nil` oznacza brak filtra. `details` i `details_full`
+podają walutę wypłaty (`currency`, PLN gdy API jej nie wysyła).
+
+### Białe znaki w API panelu
+
+API panelu (`refunds`, `payments.details`, `banks.for_service`, `payouts`) przycina każdy łańcuch żądania
+przed sprawdzeniem sumy kontrolnej - spacje, tabulatory i znaki nowej linii, ale też spacje Unicode (np. U+00A0,
+U+3000) i znaki niewidoczne (np. U+200B, U+FEFF). To więcej niż `String#strip`. SDK wysyła i podpisuje te
+wartości (także nazwę serwisu) już przycięte, więc `" 2026-08-01\n"` trafia do API jako `"2026-08-01"`.
+Identyfikator transakcji, nazwa serwisu i daty, z których nic nie zostaje, rzucają `DPay::InvalidArgumentError`
+(`transaction_id must not be empty`); powód zwrotu, z którego nic nie zostaje, jest wysyłany jako pusty.
 
 ## Karty S2S
 
@@ -223,6 +333,10 @@ begin
   payment = dpay.payments.register(request)
 rescue DPay::InvalidRequestError => e
   e.field_errors
+  e.transaction_id # transakcja utworzona przed błędem, np. odrzucone pobranie z karty
+  e.card_error     # DPay::CardError: code, decline_code (ISO 8583), decline_message
+rescue DPay::RateLimitError => e
+  e.retry_after    # sekundy; e.reset - czas Unix odnowienia limitu
 rescue DPay::ApiError => e
   e.http_status
   e.error_code # np. CHECKSUM_REQUIRED, WEBHOOK_URL_INVALID
@@ -240,13 +354,17 @@ end
 | `DPay::InvalidRequestError` | HTTP 400 lub 422 - błędne dane wejściowe, patrz `field_errors` |
 | `DPay::AccessDeniedError` | HTTP 403 |
 | `DPay::NotFoundError` | HTTP 404 |
-| `DPay::RateLimitError` | HTTP 429, dodatkowo `retry_after`, `limit`, `remaining` |
+| `DPay::RateLimitError` | HTTP 429, dodatkowo `retry_after`, `limit`, `remaining`, `reset` |
 | `DPay::ApiServerError` | HTTP 5xx |
 | `DPay::PaymentRejectedError` | rejestracja płatności odrzucona mimo HTTP 200, dodatkowo `transaction_id`, `error_description` |
-| `DPay::CardPaymentError` | płatność kartą odrzucona mimo HTTP 200 |
+| `DPay::CardPaymentError` | płatność kartą odrzucona mimo HTTP 200, dodatkowo `card_error` |
 | `DPay::SignatureVerificationError` | niepoprawny lub brakujący podpis IPN albo webhooka |
 | `DPay::TransportError` | błąd sieci lub transportu HTTP |
 | `DPay::InvalidArgumentError` | niepoprawny argument przekazany do SDK |
+
+Odmowa karty z HTTP 200 (`success: false`) rzuca `DPay::CardPaymentError`: `error_code` to komunikat API
+(np. `DCC_OFFER_EXPIRED`), a `card_error` - kod odmowy, gdy wystawca go podał. `transaction_id` i `card_error`
+ma każdy `DPay::ApiError` (z pól `transactionId` i `cardError` błędu API płatności).
 
 ## Konfiguracja
 

@@ -1,6 +1,22 @@
 module DPay
   class PayoutService
+    LIST_FILTERS: Array[String]
+    DATE_FILTERS: Array[String]
+    LIST_PER_PAGE_MAX: Integer
+    DETAILS_FULL_PER_PAGE_MAX: Integer
+
+    type filters = Hash[String | Symbol, untyped]
+
     def initialize: (Internal::ApiRequestor api) -> void
     def details: (Integer withdraw_id, ?Integer? timestamp) -> PayoutDetails
+    def list: (?filters filters, ?Integer? page, ?Integer? per_page) -> PayoutPage
+    def iterate: (?filters filters, ?Integer? per_page) { (PayoutListItem item) -> void } -> nil
+               | (?filters filters, ?Integer? per_page) -> Enumerator[PayoutListItem, nil]
+    def details_full: (Integer withdraw_id, ?Integer? page, ?Integer? per_page) -> PayoutSettlement
+
+    private
+
+    def filter_body: (untyped filters) -> Hash[String, untyped]
+    def add_page: (Hash[String, untyped] body, untyped page, untyped per_page, Integer max_per_page) -> void
   end
 end

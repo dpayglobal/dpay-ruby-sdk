@@ -1,0 +1,22 @@
+module DPay
+  class SettlementPosition
+    attr_reader payment_id: String?
+    attr_reader date: String?
+    attr_reader net: Money
+    attr_reader fee: Money
+    attr_reader gross: Money
+    attr_reader service_id: Integer?
+    attr_reader service_name: String?
+    attr_reader custom: String?
+    attr_reader ipksef: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data, String currency) -> SettlementPosition
+
+    def initialize: (Hash[String, untyped] data, String currency) -> void
+
+    private
+
+    def string: (untyped value) -> String?
+  end
+end

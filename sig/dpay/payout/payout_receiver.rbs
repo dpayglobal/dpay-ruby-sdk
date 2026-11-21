@@ -8,8 +8,8 @@ module DPay
     attr_reader receiver_address: String?
     attr_reader raw: Hash[String, untyped]
 
-    def self.from_api: (Hash[String, untyped] data) -> PayoutReceiver
+    def self.from_api: (Hash[String, untyped] data, ?String currency) -> PayoutReceiver
 
-    def initialize: (Hash[String, untyped] data) -> void
+    def initialize: (Hash[String, untyped] data, ?String currency) -> void
   end
 end

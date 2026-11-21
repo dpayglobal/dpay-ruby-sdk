@@ -1,0 +1,12 @@
+module DPay
+  module PayoutState
+    WAITING: Integer
+    PROCESSED: Integer
+    FAILED: Integer
+
+    ALL: Array[Integer]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

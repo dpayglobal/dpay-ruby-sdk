@@ -13,6 +13,12 @@ module DPay
     TOGGLES = { "creditcard" => :@credit_card, "paysafecard" => :@paysafecard, "blik" => :@blik,
                 "installment" => :@installment, "paypal" => :@paypal, "nobanks" => :@no_banks }.freeze
     RECURRING_CONFLICTS = %w[blik_alias register_blik_alias register_card_recurring card_recurring_alias].freeze
+    # Channels the API refuses as a direct "channel".
+    FORBIDDEN_CHANNELS = %w[tester paypal installment paysafecard].freeze
+    PHONE_NUMBER_LENGTH = (9..15)
+    ALIAS_IPN_URL_MAX = 500
+    EFAKTURA_CONFLICTS = %w[blik_code blik_alias register_blik_alias recurring_registration recurring_alias
+                            register_card_recurring card_recurring_alias].freeze
 
     attr_reader :amount
 
@@ -47,7 +53,14 @@ module DPay
       set("accept_tos", accept_tos)
     end
 
+    # Direct payment channel (bank or method ID, e.g. "373" for MB WAY), skipping the dpay gateway. A channel requires
+    # the payer's email and name (with_payer) and with_accept_tos; it cannot be tester, paypal, installment or
+    # paysafecard. An empty string is sent as before 0.3.0 and means no channel (the API turns it into null).
     def with_channel(channel)
+      if FORBIDDEN_CHANNELS.include?(channel)
+        raise InvalidArgumentError, %(Channel "#{channel}" cannot be used as a direct payment channel)
+      end
+
       set("channel", channel)
     end
 
@@ -81,14 +94,22 @@ module DPay
       self
     end
 
+    # Payer's phone (MB WAY "+351...", 9-15 characters). The currency must be the currency of the amount; since 0.3.0
+    # currency_code is taken from the amount anyway (DPay::Money.of(500, DPay::Currency::EUR)).
     def with_phone_number(phone_number, currency_code)
-      Currency.assert_valid(currency_code)
+      unless phone_number.is_a?(String) && PHONE_NUMBER_LENGTH.cover?(phone_number.length)
+        raise InvalidArgumentError, "Phone number must be 9-15 characters"
+      end
+
+      assert_amount_currency(currency_code)
       set("phone_number", phone_number)
       set("currency_code", currency_code)
     end
 
+    # Sends currency_code explicitly. Optional since 0.3.0: a non-PLN amount sends its currency on its own. The code
+    # must be the currency of the amount.
     def with_currency_code(currency_code)
-      Currency.assert_valid(currency_code)
+      assert_amount_currency(currency_code)
       set("currency_code", currency_code)
     end
 
@@ -172,8 +193,11 @@ module DPay
       set("reference", trimmed)
     end
 
+    # Address of alias_update notifications (BLIK OneClick and recurring payments), max 500 characters.
     def with_alias_ipn_url(url)
-      raise InvalidArgumentError, %(Invalid alias IPN URL "#{url}") unless url.is_a?(String) && HTTP_URL.match?(url)
+      unless url.is_a?(String) && url.length <= ALIAS_IPN_URL_MAX && HTTP_URL.match?(url)
+        raise InvalidArgumentError, %(Invalid alias IPN URL "#{url}")
+      end
 
       set("alias_ipn_url", url)
     end
@@ -238,6 +262,8 @@ module DPay
 
     def to_body(service)
       assert_recurring_combination
+      assert_direct_channel
+      assert_efaktura_combination
 
       # @type var body: Hash[String, untyped]
       body = {
@@ -255,8 +281,11 @@ module DPay
       append(body, "accept_tos")
       append(body, "channel")
       append_toggles(body)
-      %w[phone_number currency_code partner_platform user_agent user_ip blik_code blik_alias
-         register_blik_alias].each { |key| append(body, key) }
+      append(body, "phone_number")
+      currency_code = @optional.fetch("currency_code") { @amount.currency == Currency::PLN ? nil : @amount.currency }
+      # The API registers an amount without currency_code in PLN
+      body["currency_code"] = currency_code unless currency_code.nil?
+      %w[partner_platform user_agent user_ip blik_code blik_alias register_blik_alias].each { |key| append(body, key) }
       body["recurring_registration"] = @recurring_registration.to_h unless @recurring_registration.nil?
       %w[recurring_alias alias_ipn_url no_delay register_card_recurring card_recurring_alias authorize_only
          card_recurring_operation payout billing_address shipping_address device_info products efaktura invoice
@@ -291,6 +320,54 @@ module DPay
       end
     end
 
+    def assert_amount_currency(currency_code)
+      Currency.assert_valid(currency_code)
+      return if currency_code == @amount.currency
+
+      raise InvalidArgumentError,
+            %(Currency code "#{currency_code}" does not match the amount currency "#{@amount.currency}" - ) +
+            %(create the amount with DPay::Money.of(..., "#{currency_code}"))
+    end
+
+    def channel?
+      channel = @optional["channel"]
+      !channel.nil? && channel != ""
+    end
+
+    # MB WAY (mb_way_direct) needs channel 373 and the full device info; any direct channel needs the payer's email,
+    # name and the terms acceptance - otherwise the API answers 422.
+    def assert_direct_channel
+      if @transaction_type == TransactionType::MB_WAY_DIRECT
+        unless channel?
+          raise InvalidArgumentError, %(transactionType "mb_way_direct" requires a channel (with_channel("373")))
+        end
+
+        device_info = @optional["device_info"]
+        unless device_info.is_a?(Hash) && device_info.key?("browserJavaEnabled")
+          raise InvalidArgumentError, 'transactionType "mb_way_direct" requires device info with ' \
+                                      "browserJavaEnabled (with_device_info)"
+        end
+      end
+      return unless channel?
+
+      payer = @payer
+      if payer.nil? || payer.email.nil? || payer.first_name.to_s.empty? || payer.last_name.to_s.empty?
+        raise InvalidArgumentError, "A direct channel requires the payer's email, first name and last name (with_payer)"
+      end
+      return unless @optional["accept_tos"].nil?
+
+      raise InvalidArgumentError, "A direct channel requires the terms acceptance (with_accept_tos)"
+    end
+
+    def assert_efaktura_combination
+      return if @optional["efaktura"].nil?
+
+      conflict = EFAKTURA_CONFLICTS.find do |key|
+        key == "recurring_registration" ? !@recurring_registration.nil? : !@optional[key].nil?
+      end
+      raise InvalidArgumentError, "efaktura cannot be combined with #{conflict}" unless conflict.nil?
+    end
+
     def ip_address?(value)
       value.is_a?(String) && !value.include?("%") &&
         (Resolv::IPv4::Regex.match?(value) || Resolv::IPv6::Regex.match?(value))
@@ -310,7 +387,9 @@ module DPay
       end
 
       assert_recurring_requirements(charge)
-      conflict = (RECURRING_CONFLICTS + [charge ? "blik_code" : "channel"]).find { |key| !@optional[key].nil? }
+      conflict = (RECURRING_CONFLICTS + [charge ? "blik_code" : "channel"]).find do |key|
+        key == "channel" ? channel? : !@optional[key].nil?
+      end
       raise InvalidArgumentError, "#{conflict} cannot be combined with a recurring payment" unless conflict.nil?
     end
 

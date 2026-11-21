@@ -21,6 +21,8 @@ module DPay
     %a{deprecated: dpay no longer sends capture IPNs - use the payment.captured webhook event}
     def capture?: () -> bool
     def dcb?: () -> bool
+    def alias_update?: () -> bool
+    def alias_update: () -> AliasUpdate?
 
     private
 

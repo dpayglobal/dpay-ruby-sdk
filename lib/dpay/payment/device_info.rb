@@ -2,6 +2,9 @@
 
 module DPay
   class DeviceInfo
+    # browser_java_enabled: nil when not set - MB WAY registration requires it.
+    attr_reader :browser_java_enabled
+
     def self.create(browser_accept_header:, browser_language:, browser_color_depth:, browser_screen_height:,
                     browser_screen_width:, browser_tz:, browser_user_agent:, system_family:, geo_localization:,
                     device_id:, application_name:)

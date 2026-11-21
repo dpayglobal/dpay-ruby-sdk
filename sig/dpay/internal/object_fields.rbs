@@ -1,0 +1,11 @@
+module DPay
+  module Internal
+    module ObjectFields
+      def self?.string: (Hash[String, untyped] data, String key) -> String?
+      def self?.integer_or_nil: (Hash[String, untyped] data, String key) -> Integer?
+      def self?.hash_or_nil: (Hash[String, untyped] data, String key) -> Hash[String, untyped]?
+      def self?.currency: (Hash[String, untyped] data, ?String key) -> String
+      def self?.money: (Hash[String, untyped] data, String key, String currency) -> Money
+    end
+  end
+end

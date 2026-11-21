@@ -8,6 +8,10 @@ module DPay
     REFERENCE_MAX: Integer
     TOGGLES: Hash[String, Symbol]
     RECURRING_CONFLICTS: Array[String]
+    FORBIDDEN_CHANNELS: Array[String]
+    PHONE_NUMBER_LENGTH: Range[Integer]
+    ALIAS_IPN_URL_MAX: Integer
+    EFAKTURA_CONFLICTS: Array[String]
 
     @optional: Hash[String, untyped]
     @recurring_registration: RecurringRegistration?
@@ -61,6 +65,10 @@ module DPay
     def append: (Hash[String, untyped] body, String key) -> void
     def append_payer: (Hash[String, untyped] body) -> void
     def append_toggles: (Hash[String, untyped] body) -> void
+    def assert_amount_currency: (untyped currency_code) -> void
+    def channel?: () -> bool
+    def assert_direct_channel: () -> void
+    def assert_efaktura_combination: () -> void
     def ip_address?: (untyped value) -> bool
     def assert_recurring_combination: () -> void
     def assert_recurring_requirements: (bool charge) -> void

@@ -18,6 +18,13 @@ module DPay
       @token = token
       @device_info = device_info
       @channel_id = nil
+      @email = nil
+    end
+
+    # Payer's email (sent with the APPLE_PAY call, like for Google Pay).
+    def with_email(email)
+      @email = email
+      self
     end
 
     def with_channel_id(channel_id)
@@ -27,6 +34,7 @@ module DPay
 
     def to_body
       body = {}
+      body["email"] = @email unless @email.nil?
       body["channelId"] = @channel_id unless @channel_id.nil?
       body["xPayType"] = @x_pay_type
       body["xPayToken"] = @token unless @token.nil?

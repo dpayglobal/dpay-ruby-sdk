@@ -24,6 +24,83 @@ RSpec.describe DPay::PaymentService do
     expect(payment.transaction_id).to eq("tx-1")
   end
 
+  it "returns no paid transaction or Multibanco reference for a plain registration" do
+    transport.queue_json(200, { "transactionId" => "tx-1", "msg" => "https://secure.dpay.pl/pay/1" })
+
+    payment = service.register(DPay::RegisterPaymentRequest.create(DPay::Money.pln(100), "transfers", urls))
+
+    expect(payment.paid_transaction).to be_nil
+    expect(payment.multibanco).to be_nil
+  end
+
+  it "returns the paid transaction of a Transaction paid answer in the request currency" do
+    transport.queue_json(200, {
+                           "error" => false, "msg" => "Transaction paid", "status" => true,
+                           "transactionId" => "30D9493D-1D73-3FBD-A5D4-633723CC7A68",
+                           "additionalInfo" => { "transaction" => {
+                             "payment_id" => "30D9493D-1D73-3FBD-A5D4-633723CC7A68", "pid" => nil, "mtid" => nil,
+                             "email" => "client@example.com", "description" => "Zamowienie #1234", "name" => "Jan",
+                             "surname" => "Kowalski", "value" => "10.00", "status" => "paid",
+                             "creation_date" => "2026-11-18 10:00:00", "payment_date" => "2026-11-18 10:01:00"
+                           } }
+                         })
+
+    transaction = service.register(DPay::RegisterPaymentRequest.create(DPay::Money.pln(1000), "transfers", urls))
+                         .paid_transaction
+
+    expect(transaction.payment_id).to eq("30D9493D-1D73-3FBD-A5D4-633723CC7A68")
+    expect(transaction.status).to eq(DPay::RegisteredTransaction::STATUS_PAID)
+    expect(transaction).to be_paid
+    expect(transaction.value).to eq(DPay::Money.pln(1000))
+    expect(transaction.email).to eq("client@example.com")
+    expect(transaction.description).to eq("Zamowienie #1234")
+    expect(transaction.name).to eq("Jan")
+    expect(transaction.surname).to eq("Kowalski")
+    expect(transaction.pid).to be_nil
+    expect(transaction.mtid).to be_nil
+    expect(transaction.creation_date).to eq("2026-11-18 10:00:00")
+    expect(transaction.payment_date).to eq("2026-11-18 10:01:00")
+  end
+
+  it "returns the Multibanco reference and sends the euro currency" do
+    transport.queue_json(200, { "error" => false, "msg" => "https://secure.dpay.pl/transfer@pay@ABC", "status" => true,
+                                "transactionId" => "ABC",
+                                "multibanco" => { "entity" => "12345", "reference" => "123456789", "amount" => "12.50",
+                                                  "currency" => "EUR", "expires_at" => "2026-11-21T10:00:00+00:00" } })
+    request = DPay::RegisterPaymentRequest.create(DPay::Money.of(1250, DPay::Currency::EUR), "transfers", urls)
+                                          .with_channel("390")
+                                          .with_payer(DPay::Payer.create.with_email("client@example.com")
+                                                                 .with_name("Joao", "Silva"))
+                                          .with_accept_tos(true)
+
+    multibanco = service.register(request).multibanco
+
+    expect(transport.last_request_body["currency_code"]).to eq("EUR")
+    expect(multibanco.entity).to eq("12345")
+    expect(multibanco.reference).to eq("123456789")
+    expect(multibanco.amount).to eq(DPay::Money.of(1250, "EUR"))
+    expect(multibanco.currency).to eq("EUR")
+    expect(multibanco.expires_at).to eq("2026-11-21T10:00:00+00:00")
+  end
+
+  it "reads the registration models with fallbacks" do
+    multibanco = DPay::MultibancoReference.from_api({ "entity" => 12_345, "currency" => "eur", "amount" => "x" })
+    euro = DPay::RegisteredPayment.from_api(
+      { "additionalInfo" => { "transaction" => { "value" => 12.5, "status" => "captured" } } }, "EUR"
+    ).paid_transaction
+
+    expect(multibanco.entity).to eq("12345")
+    expect(multibanco.reference).to eq("")
+    expect(multibanco.currency).to eq("EUR")
+    expect(multibanco.amount).to be_nil
+    expect(multibanco.expires_at).to be_nil
+    expect(euro.value).to eq(DPay::Money.of(1250, "EUR"))
+    expect(euro).to be_paid
+    expect(euro.payment_id).to eq("")
+    expect(DPay::RegisteredTransaction.from_api({ "status" => "canceled" }, "bad")).not_to be_paid
+    expect(DPay::RegisteredTransaction.from_api({ "value" => "1.00" }, "bad").value).to eq(DPay::Money.pln(100))
+  end
+
   it "raises PaymentRejectedError on an HTTP 200 rejection" do
     transport.queue_json(200, { "error" => true, "errorcode" => "err12", "message" => "Rejected",
                                 "transactionId" => "tx-9" })
@@ -46,5 +123,26 @@ RSpec.describe DPay::PaymentService do
     expect(body["transaction_id"]).to eq("tx-1")
     expect(body["checksum"]).to eq("9508d77a17bdd44829ecc450214a3e356ca0cbe2f93c28012e3a5f6b39b4aa30")
     expect(transaction).to be_paid
+  end
+
+  context "with strings the panel API trims" do
+    let(:config) { DPay::Config.new(service: "MyShop", secret_hash: "secret123", http_client: transport) }
+
+    it "sends and signs the trimmed transaction id" do
+      transport.queue_json(200, { "transaction" => { "id" => "30D9493D-1D73-3FBD-A5D4-633723CC7A68" } })
+
+      service.details("\t30D9493D-1D73-3FBD-A5D4-633723CC7A68 ")
+
+      expect(transport.last_request_body).to eq(
+        { "service" => "MyShop", "transaction_id" => "30D9493D-1D73-3FBD-A5D4-633723CC7A68",
+          "checksum" => "3b345f55900ae6a43220dd14a3827ed9a26a02a3eb46b856d302e2baa44b48a4" }
+      )
+    end
+
+    it "rejects a blank transaction id before sending" do
+      expect { service.details("\u200B") }
+        .to raise_error(DPay::InvalidArgumentError, "transaction_id must not be empty")
+      expect(transport.requests).to be_empty
+    end
   end
 end

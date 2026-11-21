@@ -6,7 +6,7 @@ module GoldenFixtures
   module_function
 
   def load(name)
-    JSON.parse(File.read(File.expand_path("../golden/#{name}.json", __dir__)))
+    JSON.parse(File.read(File.expand_path("../golden/#{name}.json", __dir__), encoding: "UTF-8"))
   end
 
   def php_sdk

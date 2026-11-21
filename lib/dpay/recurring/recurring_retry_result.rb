@@ -30,6 +30,10 @@ module DPay
       @status == STATUS_PENDING
     end
 
+    def success?
+      @status == STATUS_SUCCESS
+    end
+
     def failed?
       @status == STATUS_FAILED
     end

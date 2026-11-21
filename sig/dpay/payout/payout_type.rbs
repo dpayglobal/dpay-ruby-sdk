@@ -1,0 +1,12 @@
+module DPay
+  module PayoutType
+    STANDARD: String
+    DIRECT: String
+    PAYSAFECARD: String
+
+    ALL: Array[String]
+
+    def self.valid?: (untyped value) -> bool
+    def self.assert_valid: (untyped value) -> void
+  end
+end

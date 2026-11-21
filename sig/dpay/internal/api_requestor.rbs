@@ -2,17 +2,21 @@ module DPay
   module Internal
     class ApiRequestor
       USER_AGENT: String
+      HEADER_NAME: Regexp
+      HEADER_VALUE_FORBIDDEN: Regexp
 
       attr_reader config: Config
       attr_reader checksum: ChecksumCalculator
 
       def initialize: (Config config, untyped http_client) -> void
       def service: () -> String
-      def post_json: (Symbol host, String path, Hash[String, untyped] body) -> Hash[String, untyped]
+      def panel_service: () -> String
+      def sign_panel_body: (Hash[String, untyped] body) -> Hash[String, untyped]
+      def post_json: (Symbol host, String path, Hash[String, untyped] body, ?Hash[String, String] headers) -> Hash[String, untyped]
       def get_json: (Symbol host, String path) -> Hash[String, untyped]
       def get_text: (Symbol host, String path) -> String
-      def send_request: (String method, Symbol host, String path, Hash[String, untyped]? body) -> HTTP::Response
-      def send_raw: (String method, Symbol host, String path, Hash[String, untyped]? body) -> HTTP::Response
+      def send_request: (String method, Symbol host, String path, Hash[String, untyped]? body, ?Hash[String, String] headers) -> HTTP::Response
+      def send_raw: (String method, Symbol host, String path, Hash[String, untyped]? body, ?Hash[untyped, untyped] extra_headers) -> HTTP::Response
       def map_error: (HTTP::Response response) -> ApiError
 
       private

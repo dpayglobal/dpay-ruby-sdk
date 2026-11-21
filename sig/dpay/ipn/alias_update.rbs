@@ -1,0 +1,37 @@
+module DPay
+  class AliasUpdate
+    CHANGE_REGISTER: String
+    CHANGE_UPDATE: String
+    CHANGE_UNREGISTER: String
+    CHANGE_EXPIRED: String
+    CHANGE_DECLINED: String
+
+    ALIAS_TYPE_UID: String
+    ALIAS_TYPE_PAYID: String
+
+    STATUS_ACTIVE: String
+    STATUS_INACTIVE: String
+    STATUS_UNREGISTERED: String
+    STATUS_EXPIRED: String
+    STATUS_DECLINED: String
+
+    attr_reader change_type: String?
+    attr_reader alias_type: String?
+    attr_reader alias_status: String?
+    attr_reader alias_key: String?
+    attr_reader alias_label: String?
+    attr_reader alias_expire_at: String?
+    attr_reader change_reason_category: String?
+    attr_reader change_reason_message: String?
+    attr_reader raw: Hash[String, untyped]
+
+    def self.from_api: (Hash[String, untyped] data) -> AliasUpdate
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def active?: () -> bool
+
+    private
+
+    def string: (untyped value) -> String?
+  end
+end

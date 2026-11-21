@@ -16,12 +16,14 @@ module DPay
       data = @api.post_json(Internal::BaseUrls::API_PAYMENTS, "/api/v1_0/payments/register", body)
       raise PaymentRejectedError.from_api(data) if rejected?(data)
 
-      RegisteredPayment.from_api(data)
+      RegisteredPayment.from_api(data, request.amount.currency)
     end
 
     def details(transaction_id)
-      body = { "service" => @api.service, "transaction_id" => transaction_id }
-      body["checksum"] = @api.checksum.ordered_body(body.values)
+      body = @api.sign_panel_body(
+        "service" => @api.panel_service,
+        "transaction_id" => Internal::ServerTrim.required(transaction_id, "transaction_id")
+      )
 
       Transaction.from_api(@api.post_json(Internal::BaseUrls::PANEL, "/api/v1/pbl/details", body))
     end

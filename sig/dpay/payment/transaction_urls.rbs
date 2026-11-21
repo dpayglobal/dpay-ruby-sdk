@@ -1,0 +1,15 @@
+module DPay
+  class TransactionUrls
+    attr_reader success: String?
+    attr_reader fail: String?
+    attr_reader ipn: String?
+
+    def self.from_api: (Hash[String, untyped] data) -> TransactionUrls
+
+    def initialize: (Hash[String, untyped] data) -> void
+
+    private
+
+    def string: (untyped value) -> String?
+  end
+end

@@ -97,4 +97,105 @@ RSpec.describe DPay::IpnVerifier do
   it "exposes the exact acknowledgement body" do
     expect(DPay::IpnEvent::ACK).to eq("OK")
   end
+
+  describe "alias_update" do
+    let(:secret) { "secret123" }
+    let(:payment_id) { "30D9493D-1D73-3FBD-A5D4-633723CC7A68" }
+    let(:transfer) do
+      { "id" => "tx-1", "amount" => "29.99", "email" => "jan@example.com", "type" => "transfer", "attempt" => 1,
+        "version" => 2, "custom" => "order-1" }
+    end
+
+    def alias_update(overrides = {})
+      payload = {
+        "id" => payment_id, "type" => "alias_update", "change_type" => "ALIAS_UNREGISTER", "alias_type" => "UID",
+        "alias_status" => "UNREGISTERED", "alias_label" => "Moj sklep", "alias_key" => "KEY-1",
+        "alias_expire_at" => nil, "change_reason_category" => "USER",
+        "change_reason_message" => "Unregistered in the banking app", "version" => 1
+      }.merge(overrides)
+      payload["signature"] ||= Digest::SHA256.hexdigest("#{payment_id}#{secret}alias_update1")
+      JSON.generate(payload)
+    end
+
+    def signed_transfer(overrides = {})
+      parts = [transfer["id"], secret, transfer["amount"], transfer["email"], transfer["type"], transfer["attempt"],
+               transfer["version"], transfer["custom"]]
+      transfer.merge("signature" => Digest::SHA256.hexdigest(parts.join)).merge(overrides)
+    end
+
+    it "verifies sha256(id + hash + type + version) and exposes the alias change" do
+      event = described_class.construct_event(alias_update, secret)
+      change = event.alias_update
+
+      expect(event).to be_alias_update
+      expect(event).not_to be_transfer
+      expect(event.id).to eq(payment_id)
+      expect(event.amount).to eq("")
+      expect(change.change_type).to eq(DPay::AliasUpdate::CHANGE_UNREGISTER)
+      expect(change.alias_type).to eq(DPay::AliasUpdate::ALIAS_TYPE_UID)
+      expect(change.alias_status).to eq(DPay::AliasUpdate::STATUS_UNREGISTERED)
+      expect(change).not_to be_active
+      expect(change.alias_key).to eq("KEY-1")
+      expect(change.alias_label).to eq("Moj sklep")
+      expect(change.alias_expire_at).to be_nil
+    end
+
+    it "reads the reason of the alias change" do
+      change = described_class.construct_event(alias_update, secret).alias_update
+
+      expect(change.change_reason_category).to eq("USER")
+      expect(change.change_reason_message).to eq("Unregistered in the banking app")
+      expect(change.raw["alias_key"]).to eq("KEY-1")
+    end
+
+    it "does not sign the alias fields, only id, type and version" do
+      expect(described_class.construct_event(alias_update("alias_status" => "ACTIVE"), secret).alias_update)
+        .to be_active
+
+      expect { described_class.construct_event(alias_update("id" => "OTHER"), secret) }
+        .to raise_error(DPay::SignatureVerificationError, "Invalid IPN signature")
+    end
+
+    it "requires a version" do
+      expect { described_class.construct_event(alias_update("version" => nil), secret) }
+        .to raise_error(DPay::SignatureVerificationError, "Invalid IPN payload")
+    end
+
+    it "ignores the unsigned transfer fields" do
+      event = described_class.construct_event(
+        alias_update("amount" => "999.00", "email" => "attacker@example.com", "attempt" => 7, "custom" => "order-1234"),
+        secret
+      )
+
+      expect(event).to be_alias_update
+      expect(event.amount).to eq("")
+      expect(event.email).to be_nil
+      expect(event.attempt).to eq(0)
+      expect(event.custom).to be_nil
+      expect(event.id).to eq(payment_id)
+      expect(event.version).to eq(1)
+    end
+
+    it "does not verify a transfer signature as alias_update or the reverse" do
+      expect { verify(signed_transfer("type" => "alias_update")) }
+        .to raise_error(DPay::SignatureVerificationError, "Invalid IPN signature")
+      expect do
+        described_class.construct_event(alias_update("type" => "transfer", "amount" => "", "attempt" => 1), secret)
+      end.to raise_error(DPay::SignatureVerificationError, "Invalid IPN signature")
+    end
+
+    it "has no alias change for other types" do
+      event = verify(signed_transfer)
+
+      expect(event).not_to be_alias_update
+      expect(event.alias_update).to be_nil
+      expect(DPay::IpnType::ALL).to include(DPay::IpnType::ALIAS_UPDATE)
+    end
+
+    it "signs a non-numeric version as 0 like the PHP SDK" do
+      body = alias_update("version" => "v1", "signature" => Digest::SHA256.hexdigest("#{payment_id}#{secret}alias_update0"))
+
+      expect(described_class.construct_event(body, secret).version).to eq(0)
+    end
+  end
 end

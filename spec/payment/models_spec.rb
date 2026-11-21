@@ -78,6 +78,45 @@ RSpec.describe "DPay payment models" do
       expect(transaction.refunds.first.value).to eq(DPay::Money.pln(500))
     end
 
+    it "reads the fees and return addresses" do
+      transaction = described_class.from_api(
+        { "transaction" => { "id" => "x", "rate" => 2, "minimal_fee" => 20, "permanent_fee" => 0,
+                             "urls" => { "success" => "https://shop.example/ok", "fail" => "https://shop.example/fail",
+                                         "ipn" => "https://shop.example/ipn" } } }
+      )
+
+      expect(transaction.rate).to eq("2")
+      expect(transaction.minimal_fee).to eq(20)
+      expect(transaction.permanent_fee).to eq(0)
+      expect(transaction.urls.success).to eq("https://shop.example/ok")
+      expect(transaction.urls.fail).to eq("https://shop.example/fail")
+      expect(transaction.urls.ipn).to eq("https://shop.example/ipn")
+    end
+
+    it "reads fees sent as database strings and a missing IPN address" do
+      transaction = described_class.from_api(
+        { "transaction" => { "rate" => "1.49", "minimal_fee" => "30", "permanent_fee" => 20.0,
+                             "urls" => { "success" => "https://shop.example/ok", "fail" => "", "ipn" => nil } } }
+      )
+
+      expect(transaction.rate).to eq("1.49")
+      expect(transaction.minimal_fee).to eq(30)
+      expect(transaction.permanent_fee).to be_nil
+      expect(transaction.urls.fail).to be_nil
+      expect(transaction.urls.ipn).to be_nil
+      expect(described_class.from_api({ "transaction" => { "rate" => 1.5, "minimal_fee" => "-5" } }).rate).to eq("1.5")
+      expect(described_class.from_api({ "transaction" => { "minimal_fee" => "-5" } }).minimal_fee).to eq(-5)
+    end
+
+    it "has no fees or addresses when they are missing" do
+      transaction = described_class.from_api({ "transaction" => { "id" => "x", "value" => "1.00", "rate" => true } })
+
+      expect(transaction.rate).to be_nil
+      expect(transaction.minimal_fee).to be_nil
+      expect(transaction.permanent_fee).to be_nil
+      expect(transaction.urls).to be_nil
+    end
+
     it "treats captured as paid and tolerates unknown statuses" do
       expect(described_class.from_api({ "transaction" => { "status" => "captured" } })).to be_paid
       expect(described_class.from_api({ "transaction" => { "status" => "brand_new" } }).status).to eq("brand_new")

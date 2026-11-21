@@ -1,0 +1,41 @@
+module DPay
+  class PaymentObject
+    STATUS_PENDING: String
+    STATUS_PROCESSING: String
+    STATUS_SUCCEEDED: String
+    STATUS_CAPTURED: String
+    STATUS_FAILED: String
+    STATUS_REVERSED: String
+    STATUS_CHARGED_BACK: String
+
+    SEQUENCE_FIRST: String
+    SEQUENCE_SUBSEQUENT: String
+
+    attr_reader id: String
+    attr_reader status: String?
+    attr_reader currency: String
+    attr_reader amount: Money
+    attr_reader amount_refunded: Money
+    attr_reader amount_captured: Money
+    attr_reader description: String?
+    attr_reader created: String?
+    attr_reader paid_at: String?
+    attr_reader payment_method: Hash[String, untyped]?
+    attr_reader payment_method_type: String?
+    attr_reader failure: Failure?
+    attr_reader recurring_alias: String?
+    attr_reader recurring_registration: String?
+    attr_reader recurring_sequence: String?
+    attr_reader merchant_reference: String?
+    attr_reader provider_reference: String?
+    attr_reader custom: String?
+    attr_reader raw: Hash[String, untyped]
+
+    @recurring: bool
+
+    def self.from_api: (Hash[String, untyped] data) -> PaymentObject
+
+    def initialize: (Hash[String, untyped] data) -> void
+    def recurring?: () -> bool
+  end
+end

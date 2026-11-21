@@ -50,4 +50,30 @@ RSpec.describe DPay::BankService do
 
     expect(service.all.size).to eq(1)
   end
+
+  context "with a configured service the panel API trims" do
+    let(:service_name) { " MyShop\uFEFF" }
+    let(:config) { DPay::Config.new(service: service_name, secret_hash: "secret123", http_client: transport) }
+
+    it "sends and signs the trimmed service" do
+      transport.queue_json(200, [])
+
+      service.for_service(1_753_100_000)
+
+      expect(transport.last_request_body).to eq(
+        { "service" => "MyShop", "timestamp" => 1_753_100_000,
+          "checksum" => "189d0301f163fb105c9f3d607e8fe0adbbfc5ecd8e16271a682d672f43ab623c" }
+      )
+    end
+
+    context "when nothing is left of it" do
+      let(:service_name) { "\u3000" }
+
+      it "rejects the request but not the config" do
+        expect { service.for_service(1_753_100_000) }
+          .to raise_error(DPay::InvalidArgumentError, "service must not be empty")
+        expect(transport.requests).to be_empty
+      end
+    end
+  end
 end
